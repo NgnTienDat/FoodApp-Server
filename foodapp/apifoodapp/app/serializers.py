@@ -73,4 +73,4 @@ class FoodSerializers(BaseSerializer):
     image = serializers.ImageField(required=False)
     class Meta:
         model = Food
-        fields = ["id", "name", "price", "description", "image", "category", "restaurant", "active"]
+        fields = ["id", "name", "price", "description", "image", "category", "restaurant", "is_available"]
