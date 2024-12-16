@@ -76,7 +76,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
 
 class FoodViewSet(viewsets.ModelViewSet):
-    queryset = Food.objects.filter(active=True)
+    queryset = Food.objects.filter(is_available=True)
     serializer_class = FoodSerializers
 
 
