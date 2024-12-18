@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.response import Response
 
-from .models import Restaurant, MainCategory, User, Food
+from .models import Restaurant, MainCategory, User, Food, RestaurantCategory
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer
 from rest_framework.decorators import action
@@ -74,10 +74,59 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     #         return [permissions.AllowAny()]
     #     return [permissions.IsAuthenticated()]
 
+    # 2API lấy danh sách các món ăn và các danh mục món ăn của nhà hàng
+    @action(methods=['get'], url_path='foods', detail=True)
+    def get_foods(self, request, pk):
+        foods = self.get_object().food_set.select_related('category').filter(is_available=True)
+        q = request.query_params.get("q")
+        if q:
+            foods = foods.filter(name__icontains=q)
+        return Response(FoodSerializers(foods, many=True, context={'request': request}).data)
+
+    @action(methods=['get'], url_path='categories', detail=True)
+    def get_categories(self, request, pk):
+        categories = self.get_object().restaurant_categories.filter(active=True)
+        q = request.query_params.get("q")
+        if q:
+            categories = categories.filter(name__icontains=q)
+        return Response(RestaurantCategorySerializer(categories, many=True).data)
+
 
 class FoodViewSet(viewsets.ModelViewSet):
     queryset = Food.objects.filter(is_available=True)
     serializer_class = FoodSerializers
+
+    def get_queryset(self):
+        query = self.queryset
+
+        q = self.request.query_params.get("q")
+        if q:
+            query = query.filter(name__icontains=q)
+
+        return query
+
+    @action(methods=['post'], detail=True)
+    def hide_food(self, request, pk):
+        try:
+            f = Food.objects.get(pk=pk)
+            f.is_available = False
+            f.save()
+        except Food.DoesNotExits:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(data=FoodSerializers(f, context={'request': request}).data,
+                        status=status.HTTP_200_OK)
+
+
+class RestaurantCategoryViewSet(viewsets.ModelViewSet):
+    queryset = RestaurantCategory.objects.filter(active=True)
+    serializer_class = RestaurantCategorySerializer
+
+    @action(methods=['get'], url_path='foods', detail=True)
+    def get_foods(self, request, pk):
+        foods = self.get_object().food_set.filter(is_available=True)
+
+        return Response(FoodSerializers(foods, many=True).data)
 
 
 def index(request):

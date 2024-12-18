@@ -68,8 +68,8 @@ class RestaurantCategorySerializer(BaseSerializer):
 
 
 class FoodSerializers(BaseSerializer):
-    restaurant = RestaurantSerializer()
-    category = RestaurantCategorySerializer()
+    # restaurant = RestaurantSerializer()
+    # category = RestaurantCategorySerializer()
     image = serializers.ImageField(required=False)
     class Meta:
         model = Food

@@ -77,7 +77,7 @@ class Food(models.Model):
     description = models.TextField(null=True, blank=True)
     category = models.ForeignKey(RestaurantCategory, on_delete=models.SET_NULL, null=True)
     image = CloudinaryField('image', null=True)
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="foods")
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     is_available = models.BooleanField(default=True)
     serve_period = models.CharField(max_length=20, choices=ServicePeriod.choices, null=True, blank=True)
     available_start = models.TimeField(null=True, blank=True)
