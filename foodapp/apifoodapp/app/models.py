@@ -17,6 +17,10 @@ class ServicePeriod(models.TextChoices):
     NOON = 'Trưa'
     AFTERNOON = 'Chiều'
     EVENING = 'Tối'
+    ALLDAY = 'Cả ngày'
+
+    def __str__(self):
+        return self.value
 
 
 class OrderStatus(models.TextChoices):
@@ -63,7 +67,7 @@ class MainCategory(models.Model):
 
 class RestaurantCategory(models.Model):
     name = models.CharField(max_length=100, null=False, unique=True)
-    image = CloudinaryField('image', null=True)
+
     active = models.BooleanField(default=True)
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name="restaurant_categories")
 
@@ -116,7 +120,7 @@ class Review(models.Model):
 
 
 class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_cart')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='my_cart')
     items_number = models.IntegerField(default=0)
 
 

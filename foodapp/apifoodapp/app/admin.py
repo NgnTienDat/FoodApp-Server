@@ -1,20 +1,20 @@
 from django.contrib import admin
 from django.utils.html import mark_safe
-from .models import RestaurantCategory, Food, Restaurant, User, MainCategory
+from .models import RestaurantCategory, Cart, Food, Restaurant, User, MainCategory, SubCart, SubCartItem
 
 
 # Register your models here
 class FoodAdmin(admin.ModelAdmin):
-    list_display = ["id", "name", "price", "category"]
+    list_display = ["id", "name", "price", "category", "restaurant"]
     search_fields = ["name", "price", "category__name"]
-    readonly_fields = ['image_food']
+    # readonly_fields = ['image_food']
 
-    def image_food(self, food):
-        return mark_safe(f"<img src='/static/{food.image.name}' width='200' />")
+    # def image_food(self, food):
+    #     return mark_safe(f"<img src='/static/{food.image.name}' width='200' />")
 
 
 class RestaurantCategoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "name"]
+    list_display = ["id", "name", "restaurant"]
     search_fields = ["name"]
 
 
@@ -28,7 +28,7 @@ class FoodAppAdminSite(admin.AdminSite):
 
 
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['username', 'email', 'is_active', 'role']
+    list_display = ['username', 'id', 'email', 'is_active', 'role']
     search_fields = ['first_name', 'last_name']
 
 
@@ -37,9 +37,21 @@ class RestaurantAdmin(admin.ModelAdmin):
     search_fields = ["name"]
 
 
+class CartAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'items_number']
+
+class SubCartAdmin(admin.ModelAdmin):
+    list_display = ['id', 'restaurant', 'cart', 'total_price']
+
+class SubCartItemAdmin(admin.ModelAdmin):
+    list_display = ['id', 'restaurant', 'food', 'sub_cart', 'quantity', 'price', 'note']
+
 admin_site = FoodAppAdminSite('myfoodapp')
 admin_site.register(Food, FoodAdmin)
 admin_site.register(RestaurantCategory, RestaurantCategoryAdmin)
 admin_site.register(MainCategory, MainCategoryAdmin)
 admin_site.register(User, UserAdmin)
 admin_site.register(Restaurant, RestaurantAdmin)
+admin_site.register(Cart, CartAdmin)
+admin_site.register(SubCart, SubCartAdmin)
+admin_site.register(SubCartItem, SubCartItemAdmin)
