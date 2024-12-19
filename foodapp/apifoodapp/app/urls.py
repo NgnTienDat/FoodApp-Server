@@ -3,7 +3,6 @@ from . import views
 from .admin import admin_site
 from rest_framework.routers import DefaultRouter
 
-
 router = DefaultRouter()
 router.register('restaurants', views.RestaurantViewSet)
 router.register('main_categories', views.MainCategoryViewSet)
@@ -16,5 +15,6 @@ router.register('sub-cart-item', views.SubCartItemViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('admin/', admin_site.urls)
+    path('admin/', admin_site.urls),
+    path('api/add-to-cart', views.AddItemToCart.as_view())
 ]

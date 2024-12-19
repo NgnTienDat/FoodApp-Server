@@ -95,7 +95,7 @@ WSGI_APPLICATION = 'apifoodapp.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'foodappdb',
+        'NAME': 'foodapp2db',
         'USER': 'root',
         'PASSWORD': '1234',
         'HOST': ''
@@ -144,5 +144,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'app.User'
 
 
-CLIENT_ID = 'VsPF4VJvcRS6Zn2GQUBwIZCH4eczMpbZlETZF5Rc'
-CLIENT_SECRET = '8QYK7W5YqDCZ71ksEwLB48pzPFRz22ERaXgXBxfUoiD3TTloWUtylR1SyjLE5eWnnn0NWzhxDlBsal5ZGdwo6XsTQS7oGws2jfyrnTv8YDW214hO80ih349EOJf85AQ9'
+CLIENT_ID = 'QvhI26LJ0bwHurLgrMoEYRy5OPeMrMLbmGLtZxGE'
+CLIENT_SECRET = 'Muy7Hq81uX5ElvZTT3zMr84CkzreJ4qXZsiTc7OYYwMCrNAL6UxZTeztJRri2mGxihlT2yDaqX9ZDpCbmx2FBkKBTWEwJ0dZzOeGaxSKG001yxXpodHBpXwk6DvVVmCY'
+
+

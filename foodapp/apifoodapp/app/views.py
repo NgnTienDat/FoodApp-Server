@@ -1,5 +1,8 @@
+from venv import create
+
 from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status, generics
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from unicodedata import category
@@ -21,19 +24,19 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView,
     serializer_class = UserSerializer
     parser_classes = [MultiPartParser, ]
 
-    # def get_permissions(self):
-    #     if self.action in ['get_current_user']:
-    #         return [permissions.IsAuthenticated()]
-    #     return [permissions.AllowAny()]
+    def get_permissions(self):
+        if self.action in ['get_current_user']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     @action(methods=['get'], url_path='current-user', detail=False)
     def get_current_user(self, request):
         return Response(UserSerializer(request.user).data)
 
-    def get_permissions(self):
-        if self.action == 'retrieve':
-            return [permissions.IsAuthenticated()]
-        return [permissions.AllowAny()]
+    # def get_permissions(self):
+    #     if self.action == 'retrieve':
+    #         return [permissions.IsAuthenticated()]
+    #     return [permissions.AllowAny()]
 
 
 class MainCategoryViewSet(viewsets.ModelViewSet):
@@ -221,19 +224,9 @@ class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
         return Response(CartSerializer(cart).data)
 
     def get_permissions(self):
-        if self.action == 'retrieve':
+        if self.action in ['get_my_cart']:
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
-    # def retrieve(self, request, **kwargs):
-    #     try:
-    #         # Lấy giỏ hàng dựa trên user hiện tại
-    #         cart = Cart.objects.get(user=request.user)
-    #     except Cart.DoesNotExist:
-    #         return Response(
-    #             {"error": "Giỏ hàng không tồn tại."},
-    #             status=status.HTTP_404_NOT_FOUND
-    #         )
-    #     return Response(CartSerializer(cart).data)
 
 
 class SubCartViewSet(viewsets.ModelViewSet):
@@ -245,6 +238,47 @@ class SubCartItemViewSet(viewsets.ModelViewSet):
     serializer_class = SubCartItemSerializer
     queryset = SubCartItem.objects.all()
 
+
+class AddItemToCart(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        food_id = int(request.data.get('food_id'))
+        quantity = int(request.data.get('quantity', 1))
+        note = request.data.get('note', '')
+
+        food = get_object_or_404(Food, id=food_id)
+        restaurant = food.restaurant
+        price = food.price
+
+        cart, created = Cart.objects.get_or_create(user=user)
+
+        sub_cart, created = SubCart.objects.get_or_create(cart=cart, restaurant=restaurant)
+        # them hoac cap nhat
+        sub_cart_item, created = SubCartItem.objects.get_or_create(
+            food=food, sub_cart=sub_cart,
+            defaults={'restaurant': restaurant,
+                      'quantity': quantity,
+                      'price': price,
+                      'note': note}
+        )
+        if not created:
+            sub_cart_item.quantity += quantity
+            sub_cart_item.price = sub_cart_item.quantity * price
+            sub_cart_item.save()
+
+        total_price = sum(item.price for item in sub_cart.sub_cart_items.all())
+        sub_cart.total_price += total_price
+        sub_cart.save()
+
+        items_number = cart.sub_carts.all().count()
+        cart.items_number = items_number
+        cart.save()
+
+        return Response({'message':'Thêm thành công!', 'cart': CartSerializer(cart).data}
+                        , status = status.HTTP_200_OK)
 
 def index(request):
     return HttpResponse("e-food app")
