@@ -1,3 +1,4 @@
+from sys import meta_path
 from tkinter.constants import CASCADE
 
 from django.db import models
@@ -16,6 +17,23 @@ class ServicePeriod(models.TextChoices):
     NOON = 'Trưa'
     AFTERNOON = 'Chiều'
     EVENING = 'Tối'
+    ALLDAY = 'Cả ngày'
+
+    def __str__(self):
+        return self.value
+
+
+class OrderStatus(models.TextChoices):
+    PENDING = 'Chờ xác nhận'
+    ACCEPT = 'Đã xác nhận'
+    DELIVERING = 'Đang giao hàng'
+    DELIVERED = 'Đã giao'
+    CANCEL = 'Hủy'
+
+
+class PaymentMethod(models.TextChoices):
+    COD = 'Thanh toán tiền mặt'
+    MOMO = 'Momo'
 
 
 class BaseModel(models.Model):
@@ -49,7 +67,7 @@ class MainCategory(models.Model):
 
 class RestaurantCategory(models.Model):
     name = models.CharField(max_length=100, null=False, unique=True)
-    image = CloudinaryField('image', null=True)
+
     active = models.BooleanField(default=True)
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name="restaurant_categories")
 
@@ -102,7 +120,7 @@ class Review(models.Model):
 
 
 class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_cart')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='my_cart')
     items_number = models.IntegerField(default=0)
 
 
@@ -121,5 +139,46 @@ class SubCartItem(models.Model):
     note = models.TextField()
 
 
+class MyAddress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='my_addresses')
+    address = models.TextField(null=False, blank=False)
 
 
+class Order(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='my_orders')
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True, related_name='restaurant_orders')
+    shipping_address = models.ForeignKey(MyAddress, on_delete=models.SET_NULL,null=True, related_name='orders')
+    shipping_fee = models.FloatField(default=0)
+    total = models.FloatField(default=0)
+    delivery_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
+    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL,null=True, related_name='orders')
+
+
+class Payment(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment_detail')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='my_payments')
+    created_date = models.DateTimeField(auto_now_add=True)
+    amount = models.FloatField(default=0)
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.COD)
+    is_successful = models.BooleanField(default=False)
+
+
+class OrderDetail(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='oder_details')
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, related_name='oder_details')
+    quantity = models.IntegerField(default=1)
+    sub_total = models.FloatField(default=0)
+
+
+class Menu(models.Model):
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True, related_name='menus')
+    food = models.ManyToManyField(Food, related_name='menu_food')
+    name = models.CharField(max_length=100, null=False)
+    description = models.TextField(null=True, blank=True)
+    created_date = models.DateTimeField(auto_now_add=True, null=True)
+    updated_date = models.DateTimeField(auto_now=True, null=True)
+    active = models.BooleanField(default=True)
+    serve_period = models.CharField(max_length=20, choices=ServicePeriod.choices, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.name}'
