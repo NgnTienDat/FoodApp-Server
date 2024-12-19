@@ -75,9 +75,10 @@ class RestaurantCategorySerializer(BaseSerializer):
 
 
 class FoodSerializers(BaseSerializer):
-    restaurant = RestaurantSP()
-    category = RestaurantCategorySerializer()
+    # restaurant = RestaurantSerializer()
+    # category = RestaurantCategorySerializer()
     image = serializers.ImageField(required=False)
+
     class Meta:
         model = Food
         fields = ["id", "name", "price", "description", "image", "category", "restaurant", "is_available"]
@@ -85,6 +86,7 @@ class FoodSerializers(BaseSerializer):
 
 class SubCartItemSerializer(ModelSerializer):
     food = FoodSerializers()
+
     class Meta:
         model = SubCartItem
         fields = ['id', 'food', 'sub_cart', 'quantity', 'price', 'note']
@@ -93,20 +95,37 @@ class SubCartItemSerializer(ModelSerializer):
 class SubCartSerializer(ModelSerializer):
     restaurant = RestaurantSP()
     sub_cart_items = SubCartItemSerializer(many=True)
+
     class Meta:
         model = SubCart
-        fields = ['id', 'cart', 'restaurant', 'total_price','sub_cart_items']
-
-
+        fields = ['id', 'cart', 'restaurant', 'total_price', 'sub_cart_items']
 
 
 class CartSerializer(ModelSerializer):
     user = UserSerializer()
     sub_carts = SubCartSerializer(many=True)
+
     class Meta:
         model = Cart
         fields = ['id', 'user', 'items_number', 'sub_carts']
 
 
+class FoodCreateSerializer(ModelSerializer):
+    class Meta:
+        model = Food
+        fields = ["id", "name", "price", "description", "image", "category", "is_available"]
+
+    def validate_category(self, category):
+        restaurant = self.context.get('restaurant')
+        if not restaurant:
+            raise serializers.ValidationError("Restaurant context is required")
+
+        if category.restaurant != restaurant:
+            raise serializers.ValidationError("Danh mục này không thuộc về nhà hàng")
+        return category
 
 
+class CategoryCreateSerializer(BaseSerializer):
+    class Meta:
+        model = RestaurantCategory
+        fields = ['id', 'name']
