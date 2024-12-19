@@ -5,8 +5,11 @@ from rest_framework.views import APIView
 from unicodedata import category
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory
+
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
-    RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer
+    RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
+    CategoryCreateSerializer
+
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from .paginators import RestaurantPagination
@@ -101,6 +104,44 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         if q:
             categories = categories.filter(name__icontains=q)
         return Response(RestaurantCategorySerializer(categories, many=True).data)
+
+    def get_serializer_class(self):
+        if self.action == 'create_food':
+            return FoodCreateSerializer
+        if self.action == 'create_category':
+            return CategoryCreateSerializer
+        return RestaurantSerializer  # Default serializer
+
+    @action(methods=['post'], detail=True, url_path='create_food')
+    def create_food(self, request, pk=None):
+        restaurant = self.get_object()
+
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'restaurant': restaurant, 'request': request}
+        )
+
+        if serializer.is_valid():
+            food = serializer.save(restaurant=restaurant)
+            return Response(FoodSerializers(food, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], detail=True, url_path='create_category')
+    def create_category(self, request, pk=None):
+        restaurant = self.get_object()
+
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'restaurant': restaurant, 'request': request}
+        )
+
+        if serializer.is_valid():
+            food = serializer.save(restaurant=restaurant)
+            return Response(RestaurantCategorySerializer(food, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class FoodViewSet(viewsets.ModelViewSet):
