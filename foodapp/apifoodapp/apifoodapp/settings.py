@@ -95,7 +95,7 @@ WSGI_APPLICATION = 'apifoodapp.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'foodapp2db',
+        'NAME': 'foodappdb',
         'USER': 'root',
         'PASSWORD': '1234',
         'HOST': ''
