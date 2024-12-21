@@ -98,6 +98,12 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         q = request.query_params.get("q")
         if q:
             foods = foods.filter(name__icontains=q)
+
+        page = self.paginate_queryset(foods)
+        if page is not None:
+            serializer = FoodSerializers(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
         return Response(FoodSerializers(foods, many=True, context={'request': request}).data)
 
     @action(methods=['get'], url_path='categories', detail=True)
@@ -106,6 +112,11 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         q = request.query_params.get("q")
         if q:
             categories = categories.filter(name__icontains=q)
+        page = self.paginate_queryset(categories)
+        if page is not None:
+            s = RestaurantCategorySerializer(page, many=True)
+            return self.get_paginated_response(s.data)
+
         return Response(RestaurantCategorySerializer(categories, many=True).data)
 
     def get_serializer_class(self):
