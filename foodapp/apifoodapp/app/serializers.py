@@ -67,7 +67,7 @@ class MainCategorySerializer(ModelSerializer):
 
 
 class RestaurantCategorySerializer(BaseSerializer):
-    restaurant = RestaurantSP()
+    restaurant = RestaurantSP(read_only=True)
 
     class Meta:
         model = RestaurantCategory
@@ -113,12 +113,12 @@ class CartSerializer(ModelSerializer):
 class FoodCreateSerializer(ModelSerializer):
     class Meta:
         model = Food
-        fields = ["id", "name", "price", "description", "image", "category", "is_available"]
+        fields = ["id", "name", "price", "description","serve_period", "image", "category", "is_available"]
 
     def validate_category(self, category):
         restaurant = self.context.get('restaurant')
         if not restaurant:
-            raise serializers.ValidationError("Restaurant context is required")
+            raise serializers.ValidationError("Không tồn tai nhà hàng")
 
         if category.restaurant != restaurant:
             raise serializers.ValidationError("Danh mục này không thuộc về nhà hàng")

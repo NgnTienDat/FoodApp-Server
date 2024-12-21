@@ -110,7 +110,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return FoodCreateSerializer
         if self.action == 'create_category':
             return CategoryCreateSerializer
-        return RestaurantSerializer  # Default serializer
+        return RestaurantSerializer  #Do trong viewset của restaurant nên mặc định là c này
 
     @action(methods=['post'], detail=True, url_path='create_food')
     def create_food(self, request, pk=None):
@@ -129,7 +129,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=True, url_path='create_category')
     def create_category(self, request, pk=None):
-        restaurant = self.get_object()
+        restaurant = self.get_object() #lấy NH từ pk
 
         serializer = self.get_serializer(
             data=request.data,
@@ -147,6 +147,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 class FoodViewSet(viewsets.ModelViewSet):
     queryset = Food.objects.filter(is_available=True)
     serializer_class = FoodSerializers
+    pagination_class = RestaurantPagination
 
     def get_queryset(self):
         query = self.queryset
@@ -173,6 +174,7 @@ class FoodViewSet(viewsets.ModelViewSet):
 class RestaurantCategoryViewSet(viewsets.ModelViewSet):
     queryset = RestaurantCategory.objects.filter(active=True)
     serializer_class = RestaurantCategorySerializer
+    pagination_class = RestaurantPagination
 
     @action(methods=['get'], url_path='foods', detail=True)
     def get_foods(self, request, pk):
