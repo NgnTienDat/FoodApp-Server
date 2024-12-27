@@ -3,7 +3,7 @@ from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
-from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem
+from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod
 
 
 class BaseSerializer(ModelSerializer):
@@ -67,7 +67,7 @@ class MainCategorySerializer(ModelSerializer):
 
 
 class RestaurantCategorySerializer(BaseSerializer):
-    restaurant = RestaurantSP()
+    restaurant = RestaurantSP(read_only=True)
 
     class Meta:
         model = RestaurantCategory
@@ -75,13 +75,15 @@ class RestaurantCategorySerializer(BaseSerializer):
 
 
 class FoodSerializers(BaseSerializer):
-    # restaurant = RestaurantSerializer()
+    restaurant = RestaurantSP(read_only=True)
     # category = RestaurantCategorySerializer()
     image = serializers.ImageField(required=False)
+    serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
 
     class Meta:
         model = Food
-        fields = ["id", "name", "price", "description", "image", "category", "restaurant", "is_available"]
+        fields = ["id", "name", "price", "description", "image", "category", "restaurant", "is_available",
+                  'serve_period']
 
 
 class SubCartItemSerializer(ModelSerializer):
@@ -111,9 +113,11 @@ class CartSerializer(ModelSerializer):
 
 
 class FoodCreateSerializer(ModelSerializer):
+    serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
+
     class Meta:
         model = Food
-        fields = ["id", "name", "price", "description", "image", "category", "is_available"]
+        fields = ["id", "name", "price", "description", "image", "category", "is_available", 'serve_period']
 
     def validate_category(self, category):
         restaurant = self.context.get('restaurant')
