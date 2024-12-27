@@ -164,13 +164,27 @@ class FoodViewSet(viewsets.ModelViewSet):
     pagination_class = RestaurantPagination
 
     def get_queryset(self):
-        query = self.queryset
+        queryset = self.queryset
+        params = self.request.query_params
 
-        q = self.request.query_params.get("q")
-        if q:
-            query = query.filter(name__icontains=q)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__icontains=name)
 
-        return query
+        min_price = params.get('min_price')
+        max_price = params.get('max_price')
+        if min_price and max_price:
+            queryset = queryset.filter(price__gte=min_price, price__lte=max_price)
+
+        main_category = params.get('main_category')  # send the name of main category: string
+        if main_category:
+            queryset = queryset.filter(name__icontains=main_category)
+
+        restaurant = params.get('restaurant')  # send restaurant_name
+        if restaurant:
+            queryset = queryset.filter(restaurant__name__icontains=restaurant)
+
+        return queryset
 
     @action(methods=['post'], detail=True)
     def hide_food(self, request, pk):
@@ -193,30 +207,9 @@ class RestaurantCategoryViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], url_path='foods', detail=True)
     def get_foods(self, request, pk):
         foods = self.get_object().food_set.filter(is_available=True)
-
         return Response(FoodSerializers(foods, many=True).data)
 
-        queryset = self.queryset
-        params = self.request.query_params
 
-        name = params.get('name')
-        if name:
-            queryset = queryset.filter(name__icontains=name)
-
-        min_price = params.get('min_price')
-        max_price = params.get('max_price')
-        if min_price and max_price:
-            queryset = queryset.filter(price__gte=min_price, price__lte=max_price)
-
-        main_category = params.get('main_category')  # send the name of main category: string
-        if main_category:
-            queryset = queryset.filter(name__icontains=main_category)
-
-        restaurant = params.get('restaurant')  # send restaurant_name
-        if restaurant:
-            queryset = queryset.filter(restaurant__name__icontains=restaurant)
-
-        return queryset
 
 
 class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
