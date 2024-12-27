@@ -152,37 +152,6 @@ class FoodViewSet(viewsets.ModelViewSet):
     serializer_class = FoodSerializers
 
     def get_queryset(self):
-        query = self.queryset
-
-        q = self.request.query_params.get("q")
-        if q:
-            query = query.filter(name__icontains=q)
-
-        return query
-
-    @action(methods=['post'], detail=True)
-    def hide_food(self, request, pk):
-        try:
-            f = Food.objects.get(pk=pk)
-            f.is_available = False
-            f.save()
-        except Food.DoesNotExits:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(data=FoodSerializers(f, context={'request': request}).data,
-                        status=status.HTTP_200_OK)
-
-
-class RestaurantCategoryViewSet(viewsets.ModelViewSet):
-    queryset = RestaurantCategory.objects.filter(active=True)
-    serializer_class = RestaurantCategorySerializer
-
-    @action(methods=['get'], url_path='foods', detail=True)
-    def get_foods(self, request, pk):
-        foods = self.get_object().food_set.filter(is_available=True)
-
-        return Response(FoodSerializers(foods, many=True).data)
-
         queryset = self.queryset
         params = self.request.query_params
 
@@ -204,6 +173,30 @@ class RestaurantCategoryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(restaurant__name__icontains=restaurant)
 
         return queryset
+
+    @action(methods=['post'], detail=True)
+    def hide_food(self, request, pk):
+        try:
+            f = Food.objects.get(pk=pk)
+            f.is_available = False
+            f.save()
+        except Food.DoesNotExits:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(data=FoodSerializers(f, context={'request': request}).data,
+                        status=status.HTTP_200_OK)
+
+
+class RestaurantCategoryViewSet(viewsets.ModelViewSet):
+    queryset = RestaurantCategory.objects.filter(active=True)
+    serializer_class = RestaurantCategorySerializer
+
+    @action(methods=['get'], url_path='foods', detail=True)
+    def get_foods(self, request, pk):
+        foods = self.get_object().food_set.filter(is_available=True)
+        return Response(FoodSerializers(foods, many=True).data)
+
+
 
 
 class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
