@@ -98,6 +98,12 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         q = request.query_params.get("q")
         if q:
             foods = foods.filter(name__icontains=q)
+
+        page = self.paginate_queryset(foods)
+        if page is not None:
+            serializer = FoodSerializers(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
         return Response(FoodSerializers(foods, many=True, context={'request': request}).data)
 
     @action(methods=['get'], url_path='categories', detail=True)
@@ -106,6 +112,11 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         q = request.query_params.get("q")
         if q:
             categories = categories.filter(name__icontains=q)
+        page = self.paginate_queryset(categories)
+        if page is not None:
+            s = RestaurantCategorySerializer(page, many=True)
+            return self.get_paginated_response(s.data)
+
         return Response(RestaurantCategorySerializer(categories, many=True).data)
 
     def get_serializer_class(self):
@@ -113,7 +124,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return FoodCreateSerializer
         if self.action == 'create_category':
             return CategoryCreateSerializer
-        return RestaurantSerializer  # Default serializer
+        return RestaurantSerializer  #Do trong viewset của restaurant nên mặc định là c này
 
     @action(methods=['post'], detail=True, url_path='create_food')
     def create_food(self, request, pk=None):
@@ -132,7 +143,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=True, url_path='create_category')
     def create_category(self, request, pk=None):
-        restaurant = self.get_object()
+        restaurant = self.get_object() #lấy NH từ pk
 
         serializer = self.get_serializer(
             data=request.data,
@@ -150,6 +161,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 class FoodViewSet(viewsets.ModelViewSet):
     queryset = Food.objects.filter(is_available=True)
     serializer_class = FoodSerializers
+    pagination_class = RestaurantPagination
 
     def get_queryset(self):
         queryset = self.queryset
@@ -190,6 +202,7 @@ class FoodViewSet(viewsets.ModelViewSet):
 class RestaurantCategoryViewSet(viewsets.ModelViewSet):
     queryset = RestaurantCategory.objects.filter(active=True)
     serializer_class = RestaurantCategorySerializer
+    pagination_class = RestaurantPagination
 
     @action(methods=['get'], url_path='foods', detail=True)
     def get_foods(self, request, pk):
