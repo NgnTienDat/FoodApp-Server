@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from unicodedata import category
 
-from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory
+from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
@@ -124,8 +124,9 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return FoodCreateSerializer
         if self.action == 'create_category':
             return CategoryCreateSerializer
-        return RestaurantSerializer  #Do trong viewset của restaurant nên mặc định là c này
+        return RestaurantSerializer  # Do trong viewset của restaurant nên mặc định là c này
 
+    # Chú ý: lúc tạo món ăn avf danh mục thì lấy 2 serializer khác
     @action(methods=['post'], detail=True, url_path='create_food')
     def create_food(self, request, pk=None):
         restaurant = self.get_object()
@@ -143,7 +144,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=True, url_path='create_category')
     def create_category(self, request, pk=None):
-        restaurant = self.get_object() #lấy NH từ pk
+        restaurant = self.get_object()  # lấy NH từ pk
 
         serializer = self.get_serializer(
             data=request.data,
@@ -162,6 +163,7 @@ class FoodViewSet(viewsets.ModelViewSet):
     queryset = Food.objects.filter(is_available=True)
     serializer_class = FoodSerializers
     pagination_class = RestaurantPagination
+    print(ServicePeriod.choices)
 
     def get_queryset(self):
         query = self.queryset
@@ -171,6 +173,11 @@ class FoodViewSet(viewsets.ModelViewSet):
             query = query.filter(name__icontains=q)
 
         return query
+
+    def perform_create(self, serializer):
+        print("Received data:", self.request.data)  # Thêm dòng này
+        print("serve_period value:", self.request.data.get('serve_period'))
+        super().perform_create(serializer)
 
     @action(methods=['post'], detail=True)
     def hide_food(self, request, pk):
@@ -253,7 +260,6 @@ class SubCartItemViewSet(viewsets.ModelViewSet):
 
 
 class AddItemToCart(APIView):
-
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -290,8 +296,9 @@ class AddItemToCart(APIView):
         cart.items_number = items_number
         cart.save()
 
-        return Response({'message':'Thêm thành công!', 'cart': CartSerializer(cart).data}
-                        , status = status.HTTP_200_OK)
+        return Response({'message': 'Thêm thành công!', 'cart': CartSerializer(cart).data}
+                        , status=status.HTTP_200_OK)
+
 
 def index(request):
     return HttpResponse("e-food app")
