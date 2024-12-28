@@ -1,11 +1,14 @@
 from venv import create
 
 from django.http import HttpResponse
+from pandas.io.clipboard import is_available
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from unicodedata import category
+from django.db.models import Q, Prefetch
+from urllib3 import request
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod
 
@@ -169,23 +172,30 @@ class FoodViewSet(viewsets.ModelViewSet):
         queryset = self.queryset
         params = self.request.query_params
 
-        name = params.get('name')
-        if name:
-            queryset = queryset.filter(name__icontains=name)
-
+        name = params.get('name', '').strip()
         min_price = params.get('min_price')
         max_price = params.get('max_price')
+        main_category = params.get('main_category', '').strip()  # send the name of main category: string
+        restaurant = params.get('restaurant', '').strip()  # send restaurant_name
+
+        #Sử dụng Q object to combine query conditions
+        filters = Q()
+
+        if name:
+            # queryset = queryset.filter(name__icontains=name)     .filter() is a query,
+            filters &= Q(name__icontains=name)   #  instead òf that, use Q() to filter conditions
+            # After all, we are only using 1 query for all conditions
+
         if min_price and max_price:
-            queryset = queryset.filter(price__gte=min_price, price__lte=max_price)
+            filters &= Q(price__gte=min_price, price__lte=max_price)
 
-        main_category = params.get('main_category')  # send the name of main category: string
         if main_category:
-            queryset = queryset.filter(name__icontains=main_category)
+            filters &= Q(name__icontains=main_category)
 
-        restaurant = params.get('restaurant')  # send restaurant_name
         if restaurant:
-            queryset = queryset.filter(restaurant__name__icontains=restaurant)
+            filters &= Q(restaurant__name__icontains=restaurant)
 
+        queryset = queryset.filter(filters) # 1 query:))
         return queryset
 
     def perform_create(self, serializer):
@@ -293,5 +303,146 @@ class AddItemToCart(APIView):
                         , status=status.HTTP_200_OK)
 
 
+
+class SearchFoodView(APIView):
+    def get(self, request):
+
+        params = request.query_params
+
+        name = params.get('name', '').strip()
+        # Lấy ra danh sách các nhà hàng có food chứa keyword, mỗi nhà hàng chỉ lấy 2 bản ghi food chứa keyword
+        # sử dụng prefetch_related để tối ưu hiệu suất truy vấn, tránh vấn đề queries N+1, lucs này chỉ cần 2 câu query
+        restaurants = Restaurant.objects.prefetch_related(
+            Prefetch(
+                'foods',
+                queryset=Food.objects.filter(is_available=True, name__icontains=name)[:2],
+                to_attr='filtered_foods'
+            )
+        ).filter(foods__name__icontains=name).distinct()
+
+        response_data = [
+            {
+                'id': restaurant.id,
+                'restaurant': restaurant.name,
+                'item': [
+                    {
+                        'id': food.id,
+                        'name': food.name,
+                        'price': f'{food.price:,.0f}đ',
+                        'image': food.image.url if food.image else None,
+                    }
+                    for food in restaurant.filtered_foods
+                ],
+            }
+            for restaurant in restaurants
+        ]
+        return Response(response_data, status = status.HTTP_200_OK)
+
+
+
 def index(request):
     return HttpResponse("e-food app")
+
+
+
+# from django.db.models import OuterRef, Subquery, Prefetch
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .models import Food, Restaurant
+#
+#
+# class SearchFoodsView(APIView):
+#     """
+#     API tìm kiếm món ăn theo từ khóa và nhóm theo nhà hàng.
+#     Mỗi nhà hàng sẽ hiển thị tối đa 2 món ăn.
+#     """
+#     def get(self, request):
+#         keyword = request.query_params.get('keyword', '').strip()
+#         if not keyword:
+#             return Response({"error": "Vui lòng cung cấp từ khóa tìm kiếm."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         # Truy vấn các món ăn khớp với từ khóa
+#         foods = Food.objects.filter(
+#             name__icontains=keyword,
+#             is_available=True
+#         ).select_related('restaurant')  # Lấy thông tin nhà hàng của món ăn
+#
+#         # Subquery: Lấy tối đa 2 món ăn mỗi nhà hàng
+#         limited_foods = Food.objects.filter(
+#             restaurant_id=OuterRef('id'),
+#             name__icontains=keyword,
+#             is_available=True
+#         ).order_by('id')[:2]
+#
+#         # Truy vấn các nhà hàng kèm tối đa 2 món ăn
+#         restaurants = Restaurant.objects.filter(
+#             foods__in=foods  # Lọc những nhà hàng có món ăn khớp
+#         ).prefetch_related(
+#             Prefetch(
+#                 'foods',
+#                 queryset=limited_foods,
+#                 to_attr='limited_foods'  # Đặt kết quả truy vấn vào thuộc tính này
+#             )
+#         )
+#
+#         # Chuẩn bị dữ liệu để trả về
+#         data = [
+#             {
+#                 "id": restaurant.id,
+#                 "restaurant": restaurant.name,
+#                 "items": [
+#                     {
+#                         "id": food.id,
+#                         "name": food.name,
+#                         "price": f"{food.price:,.0f}đ",
+#                         "image": food.image.url if food.image else None
+#                     }
+#                     for food in restaurant.limited_foods
+#                 ]
+#             }
+#             for restaurant in restaurants
+#         ]
+#
+#         return Response(data, status=status.HTTP_200_OK)
+#
+#
+# [
+#     {
+#         "id": 1,
+#         "restaurant": "Popeyes - Lê Văn Lương",
+#         "items": [
+#             {
+#                 "id": 101,
+#                 "name": "Gà rán 3 miếng",
+#                 "price": "75,000đ",
+#                 "image": "image-url-1"
+#             },
+#             {
+#                 "id": 102,
+#                 "name": "Combo gà cứng",
+#                 "price": "75,000đ",
+#                 "image": "image-url-2"
+#             }
+#         ]
+#     },
+#     {
+#         "id": 2,
+#         "restaurant": "Texas - Lê Văn Lương",
+#         "items": [
+#             {
+#                 "id": 201,
+#                 "name": "Gà rán 5 miếng",
+#                 "price": "125,000đ",
+#                 "image": "image-url-3"
+#             },
+#             {
+#                 "id": 202,
+#                 "name": "Combo gà sốt cay",
+#                 "price": "135,000đ",
+#                 "image": "image-url-4"
+#             }
+#         ]
+#     }
+# ]
+

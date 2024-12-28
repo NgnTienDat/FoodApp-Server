@@ -16,5 +16,6 @@ router.register('sub-cart-item', views.SubCartItemViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('admin/', admin_site.urls),
-    path('api/add-to-cart', views.AddItemToCart.as_view())
+    path('api/add-to-cart', views.AddItemToCart.as_view()),
+    path('search-food/', views.SearchFoodView.as_view())
 ]
