@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'oauth2_provider',
     'drf_yasg',
-    'cloudinary'
+    'cloudinary',
+    'debug_toolbar',
 ]
 
 cloudinary.config(
@@ -59,6 +60,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+]
+
+INTERNAL_IPS = [
+    '127.0.0.1', '192.168.1.213'
 ]
 
 ROOT_URLCONF = 'apifoodapp.urls'
