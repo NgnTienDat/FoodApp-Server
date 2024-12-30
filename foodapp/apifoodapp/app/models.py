@@ -66,7 +66,7 @@ class MainCategory(models.Model):
 
 
 class RestaurantCategory(models.Model):
-    name = models.CharField(max_length=100, null=False, unique=True)
+    name = models.CharField(max_length=100, null=False)
 
     active = models.BooleanField(default=True)
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name="restaurant_categories")

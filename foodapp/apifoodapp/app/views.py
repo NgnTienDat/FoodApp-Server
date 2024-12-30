@@ -175,7 +175,6 @@ class FoodViewSet(viewsets.ModelViewSet):
         max_price = params.get('max_price')
         main_category = params.get('main_category', '').strip()  # send the name of main category: string
         restaurant = params.get('restaurant', '').strip()  # send restaurant_name
-
         #Sử dụng Q object to combine query conditions
         filters = Q()
 
@@ -303,21 +302,45 @@ class SearchFoodView(APIView):
         params = request.query_params
 
         name = params.get('name', '').strip()
+        min_price = params.get('min_price')
+        max_price = params.get('max_price')
+        main_category = params.get('main_category', '').strip()  # send the name of main category: string
+        restaurant = params.get('restaurant', '').strip()  # send restaurant_name
+
+        food_query = Food.objects.filter(is_available=True)
+
+        filters = Q()
+
+        if name:
+            filters &= Q(name__icontains=name)
+
+        if min_price and max_price:
+            filters &= Q(price__gte=min_price, price__lte=max_price)
+
+        if main_category:
+            filters &= Q(name__icontains=main_category)
+
+        if restaurant:
+            filters &= Q(restaurant__name__icontains=restaurant)
+
+        food_query = food_query.filter(filters)
+
         # Lấy ra danh sách các nhà hàng có food chứa keyword, mỗi nhà hàng chỉ lấy 2 bản ghi food chứa keyword
         # sử dụng prefetch_related để tối ưu hiệu suất truy vấn, tránh vấn đề queries N+1, lucs này chỉ cần 2 câu query
         restaurants = Restaurant.objects.prefetch_related(
             Prefetch(
                 'foods',
-                queryset=Food.objects.filter(is_available=True, name__icontains=name)[:2],
+                queryset=food_query[:2],
                 to_attr='filtered_foods'
             )
-        ).filter(foods__name__icontains=name).distinct()
+        ).filter(foods__in=food_query).distinct()
 
         response_data = [
             {
                 'id': restaurant.id,
                 'restaurant': restaurant.name,
-                'item': [
+                'image': restaurant.image.url if restaurant.image else None,
+                'items': [
                     {
                         'id': food.id,
                         'name': food.name,
