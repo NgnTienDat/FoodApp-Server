@@ -311,7 +311,7 @@ class SearchFoodView(APIView):
         name = params.get('name', '').strip()
         min_price = params.get('min_price')
         max_price = params.get('max_price')
-        main_category = params.get('main_category', '').strip()  # send the name of main category: string
+        main_categories = params.getlist('main_category')  # send the name of main category: string
         restaurant = params.get('restaurant', '').strip()  # send restaurant_name
 
         food_query = Food.objects.filter(is_available=True)
@@ -319,16 +319,22 @@ class SearchFoodView(APIView):
         filters = Q()
 
         if name:
-            filters &= Q(name__icontains=name)
-
+            # filters &= Q(name__icontains=name, restaurant__name__icontains=name)
+            filters |= Q(name__icontains=name) | Q(restaurant__name__icontains=name)
         if min_price and max_price:
             filters &= Q(price__gte=min_price, price__lte=max_price)
 
-        if main_category:
-            filters &= Q(name__icontains=main_category)
+        if main_categories:
+            # Duyệt qua từng giá trị trong mảng main_categories
+            category_filters = Q()
+            for c in main_categories:
+                category_filters |= Q(name__icontains=c)  # Hoặc field phù hợp
+            filters &= category_filters
 
         if restaurant:
             filters &= Q(restaurant__name__icontains=restaurant)
+            filters |= Q(name__icontains=name) | Q(restaurant__name__icontains=restaurant)
+
 
         food_query = food_query.filter(filters)
 
