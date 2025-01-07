@@ -86,7 +86,7 @@ class FoodSerializers(BaseSerializer):
     class Meta:
         model = Food
         fields = ["id", "name", "price", "description", "image", "category", "restaurant", "is_available",
-                  'serve_period']
+                  'serve_period', 'star_rate']
 
 
 class RestaurantSearchSP(ModelSerializer):
@@ -115,11 +115,11 @@ class SubCartSerializer(ModelSerializer):
 
 class CartSerializer(ModelSerializer):
     user = UserSerializer()
-    sub_carts = SubCartSerializer(many=True)
+    # sub_carts = SubCartSerializer(many=True)
 
     class Meta:
         model = Cart
-        fields = ['id', 'user', 'items_number', 'sub_carts']
+        fields = ['id', 'user', 'items_number']
 
 
 class FoodCreateSerializer(ModelSerializer):

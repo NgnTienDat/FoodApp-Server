@@ -18,7 +18,7 @@ from .serializers import RestaurantSerializer, MainCategorySerializer, UserSeria
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
-from .paginators import RestaurantPagination
+from .paginators import RestaurantPagination, MySubCartPagination
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView,
@@ -245,6 +245,26 @@ class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
 
         return Response(CartSerializer(cart).data)
 
+    @action(methods=['get'], url_path='sub-carts', detail=False)
+    def get_my_sub_cart(self, request):
+        try:
+            cart = Cart.objects.get(user=request.user)
+        except Cart.DoesNotExist:
+            return Response(
+                {"error": "Giỏ hàng không tồn tại."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        sub_carts = SubCart.objects.filter(cart=cart)
+        paginator = MySubCartPagination()
+        paginated_subcarts = paginator.paginate_queryset(sub_carts, request)
+        serializer = SubCartSerializer(paginated_subcarts, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
+
+
+
+
     def get_permissions(self):
         if self.action in ['get_my_cart']:
             return [permissions.IsAuthenticated()]
@@ -368,110 +388,21 @@ class SearchFoodView(APIView):
         return Response(response_data, status = status.HTTP_200_OK)
 
 
+class RestaurantFoodsView(APIView):
+    def get(self, request, restaurant_id):
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+            foods = restaurant.foods.filter(is_available=True).all()
+            serializer = FoodSerializers(foods, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Restaurant.DoesNotExist:
+            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
 
 def index(request):
     return HttpResponse("e-food app")
 
 
 
-# from django.db.models import OuterRef, Subquery, Prefetch
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .models import Food, Restaurant
-#
-#
-# class SearchFoodsView(APIView):
-#     """
-#     API tìm kiếm món ăn theo từ khóa và nhóm theo nhà hàng.
-#     Mỗi nhà hàng sẽ hiển thị tối đa 2 món ăn.
-#     """
-#     def get(self, request):
-#         keyword = request.query_params.get('keyword', '').strip()
-#         if not keyword:
-#             return Response({"error": "Vui lòng cung cấp từ khóa tìm kiếm."}, status=status.HTTP_400_BAD_REQUEST)
-#
-#         # Truy vấn các món ăn khớp với từ khóa
-#         foods = Food.objects.filter(
-#             name__icontains=keyword,
-#             is_available=True
-#         ).select_related('restaurant')  # Lấy thông tin nhà hàng của món ăn
-#
-#         # Subquery: Lấy tối đa 2 món ăn mỗi nhà hàng
-#         limited_foods = Food.objects.filter(
-#             restaurant_id=OuterRef('id'),
-#             name__icontains=keyword,
-#             is_available=True
-#         ).order_by('id')[:2]
-#
-#         # Truy vấn các nhà hàng kèm tối đa 2 món ăn
-#         restaurants = Restaurant.objects.filter(
-#             foods__in=foods  # Lọc những nhà hàng có món ăn khớp
-#         ).prefetch_related(
-#             Prefetch(
-#                 'foods',
-#                 queryset=limited_foods,
-#                 to_attr='limited_foods'  # Đặt kết quả truy vấn vào thuộc tính này
-#             )
-#         )
-#
-#         # Chuẩn bị dữ liệu để trả về
-#         data = [
-#             {
-#                 "id": restaurant.id,
-#                 "restaurant": restaurant.name,
-#                 "items": [
-#                     {
-#                         "id": food.id,
-#                         "name": food.name,
-#                         "price": f"{food.price:,.0f}đ",
-#                         "image": food.image.url if food.image else None
-#                     }
-#                     for food in restaurant.limited_foods
-#                 ]
-#             }
-#             for restaurant in restaurants
-#         ]
-#
-#         return Response(data, status=status.HTTP_200_OK)
-#
-#
-# [
-#     {
-#         "id": 1,
-#         "restaurant": "Popeyes - Lê Văn Lương",
-#         "items": [
-#             {
-#                 "id": 101,
-#                 "name": "Gà rán 3 miếng",
-#                 "price": "75,000đ",
-#                 "image": "image-url-1"
-#             },
-#             {
-#                 "id": 102,
-#                 "name": "Combo gà cứng",
-#                 "price": "75,000đ",
-#                 "image": "image-url-2"
-#             }
-#         ]
-#     },
-#     {
-#         "id": 2,
-#         "restaurant": "Texas - Lê Văn Lương",
-#         "items": [
-#             {
-#                 "id": 201,
-#                 "name": "Gà rán 5 miếng",
-#                 "price": "125,000đ",
-#                 "image": "image-url-3"
-#             },
-#             {
-#                 "id": 202,
-#                 "name": "Combo gà sốt cay",
-#                 "price": "135,000đ",
-#                 "image": "image-url-4"
-#             }
-#         ]
-#     }
-# ]
 
