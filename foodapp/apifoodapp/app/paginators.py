@@ -5,5 +5,5 @@ class RestaurantPagination(pagination.PageNumberPagination):
     page_size = 8
 
 class MySubCartPagination(pagination.PageNumberPagination):
-    page_size = 1
+    page_size = 10
 
