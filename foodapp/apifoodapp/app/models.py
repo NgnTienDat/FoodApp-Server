@@ -128,6 +128,8 @@ class SubCart(models.Model):
     cart = models.ForeignKey(Cart, related_name='sub_carts', on_delete=models.CASCADE)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='sub_carts')
     total_price = models.FloatField(default=0)
+    total_quantity = models.IntegerField(default=0)
+
 
 
 class SubCartItem(models.Model):

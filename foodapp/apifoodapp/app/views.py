@@ -290,6 +290,8 @@ class AddItemToCart(APIView):
         quantity = int(request.data.get('quantity', 1))
         note = request.data.get('note', '')
 
+
+
         food = get_object_or_404(Food, id=food_id)
         restaurant = food.restaurant
         price = food.price
@@ -310,8 +312,10 @@ class AddItemToCart(APIView):
             sub_cart_item.price = sub_cart_item.quantity * price
             sub_cart_item.save()
 
-        total_price = sum(item.price for item in sub_cart.sub_cart_items.all())
-        sub_cart.total_price += total_price
+        total_price = sum(item.price*item.quantity for item in sub_cart.sub_cart_items.all())
+        total_quantity = sum(item.quantity for item in sub_cart.sub_cart_items.all())
+        sub_cart.total_price = total_price
+        sub_cart.total_quantity = total_quantity
         sub_cart.save()
 
         items_number = cart.sub_carts.all().count()
