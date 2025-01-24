@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'oauth2_provider',
     'drf_yasg',
-    'cloudinary'
+    'cloudinary',
+    'debug_toolbar'
 ]
 
 cloudinary.config(
@@ -59,6 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'apifoodapp.urls'
@@ -148,3 +150,6 @@ CLIENT_ID = 'QvhI26LJ0bwHurLgrMoEYRy5OPeMrMLbmGLtZxGE'
 CLIENT_SECRET = 'Muy7Hq81uX5ElvZTT3zMr84CkzreJ4qXZsiTc7OYYwMCrNAL6UxZTeztJRri2mGxihlT2yDaqX9ZDpCbmx2FBkKBTWEwJ0dZzOeGaxSKG001yxXpodHBpXwk6DvVVmCY'
 
 
+INTERNAL_IPS = [
+    '192.168.10.200',  # Địa chỉ IP của localhost
+]
