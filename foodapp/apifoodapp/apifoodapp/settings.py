@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-i!_^62v6mlx$x9wdwi0^qsy536y$1-tw+almbtc&noioz5f+=4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.213', '127.0.0.1', '192.168.0.108', '192.168.10.200']
+ALLOWED_HOSTS = ['192.168.1.213', '127.0.0.1', '192.168.0.108', '192.168.10.200', '192.168.1.12']
 
 # Application definition
 
@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'oauth2_provider',
     'drf_yasg',
-    'cloudinary'
+    'cloudinary',
+    'debug_toolbar',
 ]
 
 cloudinary.config(
@@ -59,6 +60,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+]
+
+INTERNAL_IPS = [
+    '127.0.0.1', '192.168.1.213'
 ]
 
 ROOT_URLCONF = 'apifoodapp.urls'
@@ -97,7 +103,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'foodappdb',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'tiendatmySQL964@',
         'HOST': ''
     }
 }
@@ -143,8 +149,5 @@ MEDIA_ROOT = '%s/app/static' % BASE_DIR
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'app.User'
 
-
 CLIENT_ID = 'QvhI26LJ0bwHurLgrMoEYRy5OPeMrMLbmGLtZxGE'
 CLIENT_SECRET = 'Muy7Hq81uX5ElvZTT3zMr84CkzreJ4qXZsiTc7OYYwMCrNAL6UxZTeztJRri2mGxihlT2yDaqX9ZDpCbmx2FBkKBTWEwJ0dZzOeGaxSKG001yxXpodHBpXwk6DvVVmCY'
-
-
