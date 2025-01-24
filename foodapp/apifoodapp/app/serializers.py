@@ -3,7 +3,8 @@ from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
-from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod
+from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
+    Menu, Order, OrderDetail
 
 
 class BaseSerializer(ModelSerializer):
@@ -32,24 +33,36 @@ class UserSerializer(ModelSerializer):
     #     return user
 
     avatar = serializers.ImageField(required=False)
+    restaurant_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone_number', 'username', 'password', 'avatar', 'role']
+        fields = ['id', 'email', 'phone_number', 'username', 'password', 'avatar', 'role', 'restaurant_id']
         extra_kwargs = {
             'password': {
                 'write_only': True
             }
         }
 
+    def get_restaurant_id(self, obj):
+        if obj.restaurants:
+            return obj.restaurants.id
+        return None
+
 
 class RestaurantSerializer(ModelSerializer):
-    owner = UserSerializer()
+    # owner = UserSerializer()
     image = serializers.ImageField(required=False)
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'address', 'phone_number', 'owner', 'star_rate', 'image']
+        fields = ['id', 'name', 'address', 'phone_number', 'owner', 'star_rate', 'image', 'active']
+
+    # def create(self, validated_data):
+    #     owner_data = validated_data.pop('owner')
+    #     u = User.objects.create_user(**owner_data)
+    #     restaurant = Restaurant.objects.create(owner=u, **validated_data)
+    #     return restaurant
 
 
 class RestaurantSP(ModelSerializer):
@@ -133,3 +146,39 @@ class CategoryCreateSerializer(BaseSerializer):
     class Meta:
         model = RestaurantCategory
         fields = ['id', 'name']
+
+
+class FoodDB(ModelSerializer):
+    class Meta:
+        model = Food
+        fields = ['id', 'name']
+
+
+class MenuSerializer(ModelSerializer):
+    serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
+    restaurant = RestaurantSP(read_only=True)
+
+    # food = FoodDB(many=True)
+
+    class Meta:
+        model = Menu
+        fields = ['id', 'name', 'restaurant', 'description', 'food', 'serve_period', 'active']
+
+
+class OrderDetailSerializer(ModelSerializer):
+    food_name = serializers.CharField(source='food.name', read_only=True)
+
+    class Meta:
+        model = OrderDetail
+        fields = ['id', 'food', 'food_name', 'quantity', 'sub_total', 'order']
+
+
+class OrderSerializer(ModelSerializer):
+    order_details = OrderDetailSerializer(many=True, read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'user_name', 'restaurant', 'order_date', 'shipping_address', 'shipping_fee', 'total',
+                  'delivery_status',
+                  'order_details']

@@ -118,7 +118,6 @@ class Review(models.Model):
         return f'{self.user}: {self.comment}'
 
 
-
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='my_cart')
     items_number = models.IntegerField(default=0)
@@ -135,7 +134,7 @@ class SubCartItem(models.Model):
     food = models.ForeignKey(Food, on_delete=models.CASCADE, null=False, related_name='sub_cart_items')
     sub_cart = models.ForeignKey(SubCart, on_delete=models.CASCADE, related_name='sub_cart_items')
     quantity = models.IntegerField(default=1)
-    price = models.FloatField(default=0, null=False) # tự động tính quantity * food.price
+    price = models.FloatField(default=0, null=False)  # tự động tính quantity * food.price
     note = models.TextField()
 
 
@@ -147,11 +146,21 @@ class MyAddress(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='my_orders')
     restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True, related_name='restaurant_orders')
-    shipping_address = models.ForeignKey(MyAddress, on_delete=models.SET_NULL,null=True, related_name='orders')
+    shipping_address = models.ForeignKey(MyAddress, on_delete=models.SET_NULL, null=True, related_name='orders')
     shipping_fee = models.FloatField(default=0)
     total = models.FloatField(default=0)
     delivery_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
-    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL,null=True, related_name='orders')
+    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL, null=True, related_name='orders')
+    order_date = models.DateTimeField(auto_now_add=True, null=True)
+
+    # def save(self, *args, **kwargs):
+    #     if not self.pk:
+    #         super().save(*args, **kwargs)
+    #
+    #     self.total = sum(
+    #         detail.sub_total for detail in self.order_details.all()
+    #     ) + self.shipping_fee
+    #     super().save(*args, **kwargs)
 
 
 class Payment(models.Model):
@@ -164,10 +173,14 @@ class Payment(models.Model):
 
 
 class OrderDetail(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='oder_details')
-    food = models.ForeignKey(Food, on_delete=models.CASCADE, related_name='oder_details')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_details')
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, related_name='food_details')
     quantity = models.IntegerField(default=1)
     sub_total = models.FloatField(default=0)
+
+    # def save(self, *args, **kwargs):
+    #     self.sub_total = self.food.price * self.quantity
+    #     super(OrderDetail, self).save(*args, **kwargs)
 
 
 class Menu(models.Model):

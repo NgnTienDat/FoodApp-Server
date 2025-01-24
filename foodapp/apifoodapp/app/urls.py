@@ -12,6 +12,9 @@ router.register('restaurant_categories', views.RestaurantCategoryViewSet)
 router.register('carts', views.CartViewSet)
 router.register('sub-cart', views.SubCartViewSet)
 router.register('sub-cart-item', views.SubCartItemViewSet)
+router.register('menus', views.MenuViewSet)
+router.register('orders', views.OrderViewSet)
+router.register('order-detail', views.OrderDetailViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
