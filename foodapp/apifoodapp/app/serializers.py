@@ -1,10 +1,11 @@
+from django.core.exceptions import ObjectDoesNotExist
 from oauthlib.uri_validate import query
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
 from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
-    Menu, Order, OrderDetail
+    Menu, Order, OrderDetail, RestaurantAddress
 
 
 class BaseSerializer(ModelSerializer):
@@ -45,18 +46,31 @@ class UserSerializer(ModelSerializer):
         }
 
     def get_restaurant_id(self, obj):
-        if obj.restaurants:
-            return obj.restaurants.id
-        return None
+        try:
+            if obj.restaurants:
+                return obj.restaurants.id
+        except ObjectDoesNotExist:
+            return None
+
+
+class RestaurantAddressSerializer(serializers.ModelSerializer):
+    address_restaurant = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RestaurantAddress
+        fields = ['id', 'address', 'district', 'city', 'latitude', 'longitude', 'address_restaurant']
+
+    def get_address_restaurant(self, obj):
+        return str(obj)
 
 
 class RestaurantSerializer(ModelSerializer):
-    # owner = UserSerializer()
     image = serializers.ImageField(required=False)
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'address', 'phone_number', 'owner', 'star_rate', 'image', 'active']
+        fields = ['id', 'name', 'address', 'address', 'latitude', 'longitude', 'phone_number', 'owner', 'star_rate',
+                  'image', 'active']
 
     # def create(self, validated_data):
     #     owner_data = validated_data.pop('owner')

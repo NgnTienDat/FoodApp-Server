@@ -75,15 +75,29 @@ class RestaurantCategory(models.Model):
         return self.name
 
 
+class RestaurantAddress(models.Model):
+    address = models.CharField(max_length=100)
+    district = models.CharField(max_length=50, null=True)
+    city = models.CharField(max_length=50, null=True)
+    latitude = models.FloatField()  # Vĩ độ
+    longitude = models.FloatField()  # Kinh độ
+
+    def __str__(self):
+        return f"{self.address}, {self.district}, {self.city}"
+
+
 class Restaurant(models.Model):
     name = models.CharField(max_length=100, blank=False, null=False)
-    address = models.CharField(max_length=255, blank=True)
+    address = models.CharField(max_length=100, null=True)
+    latitude = models.FloatField(null=True)  # Vĩ độ
+    longitude = models.FloatField(null=True)  # Kinh độ
     phone_number = models.CharField(max_length=10, blank=True, null=True)
     owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurants")
     star_rate = models.FloatField(null=True)
     active = models.BooleanField(default=True)
     image = CloudinaryField('image', null=True)
     followers = models.ManyToManyField(User, related_name='following_restaurants')
+    shipping_fee = models.FloatField(null=True)
 
     def __str__(self):
         return self.name

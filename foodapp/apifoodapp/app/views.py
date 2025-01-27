@@ -10,11 +10,11 @@ from rest_framework.views import APIView
 from unicodedata import category
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
-    Menu, Order, OrderDetail
+    Menu, Order, OrderDetail, RestaurantAddress
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
-    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer
+    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -150,7 +150,8 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], url_path='category_report', detail=True)
     def get_category_report(self, request, pk):
         restaurant = self.get_object()
-        category_report = OrderDetail.objects.filter(order__restaurant=restaurant).values('food__category__name').annotate(
+        category_report = OrderDetail.objects.filter(order__restaurant=restaurant).values(
+            'food__category__name').annotate(
             total_sale=Sum('sub_total'), total_order=Count('food'), order_date=TruncDate('order__order_date'))
         return Response(category_report)
 
@@ -367,6 +368,11 @@ class OrderDetailViewSet(viewsets.ModelViewSet):
         'food'
     )
     serializer_class = OrderDetailSerializer
+
+
+class AddressRestaurantViewSet(viewsets.ModelViewSet):
+    queryset = RestaurantAddress.objects.all()
+    serializer_class = RestaurantAddressSerializer
 
 
 def index(request):
