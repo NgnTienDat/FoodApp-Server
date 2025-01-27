@@ -1,9 +1,9 @@
-from oauthlib.uri_validate import query
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
-from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod
+from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
+    MyAddress, Order, OrderDetail
 
 
 class BaseSerializer(ModelSerializer):
@@ -54,12 +54,10 @@ class RestaurantSerializer(ModelSerializer):
 
 class RestaurantSP(ModelSerializer):
     image = serializers.ImageField(required=False)
+
     class Meta:
         model = Restaurant
         fields = ['id', 'name', 'image']
-
-
-
 
 
 class MainCategorySerializer(ModelSerializer):
@@ -92,6 +90,7 @@ class FoodSerializers(BaseSerializer):
 
 class RestaurantSearchSP(ModelSerializer):
     foods = FoodSerializers(many=True)
+
     class Meta:
         model = Restaurant
         fields = ['id', 'name', 'foods']
@@ -111,11 +110,38 @@ class SubCartSerializer(ModelSerializer):
 
     class Meta:
         model = SubCart
-        fields = ['id', 'cart', 'restaurant', 'total_price', 'total_quantity','sub_cart_items']
+        fields = ['id', 'cart', 'restaurant', 'total_price', 'total_quantity', 'sub_cart_items']
+
+
+class OrderDetailSerializer(BaseSerializer):
+    food = FoodSerializers()
+
+    class Meta:
+        model = OrderDetail
+        fields = ['id', 'food', 'order', 'quantity', 'sub_total']
+
+
+class OrderSerializer(BaseSerializer):
+    # order_details = OrderDetailSerializer(many=True)
+    # user = UserSerializer()
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'restaurant', 'shipping_address', 'shipping_fee', 'total', 'delivery_status']
+
+
+
+class PaymentSerializer(ModelSerializer):
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'order', 'created_date', 'amount', 'payment_method', 'is_successful']
+
 
 
 class CartSerializer(ModelSerializer):
     user = UserSerializer()
+
     # sub_carts = SubCartSerializer(many=True)
 
     class Meta:
@@ -144,3 +170,10 @@ class CategoryCreateSerializer(BaseSerializer):
     class Meta:
         model = RestaurantCategory
         fields = ['id', 'name']
+
+
+class MyAddressSerializer(BaseSerializer):
+
+    class Meta:
+        model = MyAddress
+        fields = ['id', 'user', 'receiver_name', 'phone_number', 'address', 'latitude', 'longitude']
