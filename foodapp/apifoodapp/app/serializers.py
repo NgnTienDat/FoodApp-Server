@@ -1,11 +1,12 @@
+
 from django.core.exceptions import ObjectDoesNotExist
-from oauthlib.uri_validate import query
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
 from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
-    Menu, Order, OrderDetail, RestaurantAddress
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress
+
 
 
 class BaseSerializer(ModelSerializer):
@@ -81,12 +82,10 @@ class RestaurantSerializer(ModelSerializer):
 
 class RestaurantSP(ModelSerializer):
     image = serializers.ImageField(required=False)
+
     class Meta:
         model = Restaurant
         fields = ['id', 'name', 'image']
-
-
-
 
 
 class MainCategorySerializer(ModelSerializer):
@@ -119,6 +118,7 @@ class FoodSerializers(BaseSerializer):
 
 class RestaurantSearchSP(ModelSerializer):
     foods = FoodSerializers(many=True)
+
     class Meta:
         model = Restaurant
         fields = ['id', 'name', 'foods']
@@ -138,11 +138,38 @@ class SubCartSerializer(ModelSerializer):
 
     class Meta:
         model = SubCart
-        fields = ['id', 'cart', 'restaurant', 'total_price', 'total_quantity','sub_cart_items']
+        fields = ['id', 'cart', 'restaurant', 'total_price', 'total_quantity', 'sub_cart_items']
+
+
+class OrderDetailSerializer(BaseSerializer):
+    food = FoodSerializers()
+
+    class Meta:
+        model = OrderDetail
+        fields = ['id', 'food', 'order', 'quantity', 'sub_total']
+
+
+class OrderSerializer(BaseSerializer):
+    # order_details = OrderDetailSerializer(many=True)
+    # user = UserSerializer()
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'restaurant', 'shipping_address', 'shipping_fee', 'total', 'delivery_status']
+
+
+
+class PaymentSerializer(ModelSerializer):
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'order', 'created_date', 'amount', 'payment_method', 'is_successful']
+
 
 
 class CartSerializer(ModelSerializer):
     user = UserSerializer()
+
     # sub_carts = SubCartSerializer(many=True)
 
     class Meta:
@@ -173,6 +200,12 @@ class CategoryCreateSerializer(BaseSerializer):
         fields = ['id', 'name']
 
 
+class MyAddressSerializer(BaseSerializer):
+
+    class Meta:
+        model = MyAddress
+        fields = ['id', 'user', 'receiver_name', 'phone_number', 'address', 'latitude', 'longitude']
+
 class FoodDB(ModelSerializer):
     class Meta:
         model = Food
@@ -189,21 +222,21 @@ class MenuSerializer(ModelSerializer):
         model = Menu
         fields = ['id', 'name', 'restaurant', 'description', 'food', 'serve_period', 'active']
 
+#
+# class OrderDetailSerializer(ModelSerializer):
+#     food_name = serializers.CharField(source='food.name', read_only=True)
+#     class Meta:
+#         model = OrderDetail
+#         fields = ['id', 'food', 'food_name', 'quantity', 'sub_total', 'order']
+#
+#
+# class OrderSerializer(ModelSerializer):
+#     order_details = OrderDetailSerializer(many=True, read_only=True)
+#     user_name = serializers.CharField(source='user.username', read_only=True)
+#
+#     class Meta:
+#         model = Order
+#         fields = ['id', 'user', 'user_name', 'restaurant', 'order_date', 'shipping_address', 'shipping_fee', 'total',
+#                   'delivery_status',
+#                   'order_details']
 
-class OrderDetailSerializer(ModelSerializer):
-    food_name = serializers.CharField(source='food.name', read_only=True)
-
-    class Meta:
-        model = OrderDetail
-        fields = ['id', 'food', 'food_name', 'quantity', 'sub_total', 'order']
-
-
-class OrderSerializer(ModelSerializer):
-    order_details = OrderDetailSerializer(many=True, read_only=True)
-    user_name = serializers.CharField(source='user.username', read_only=True)
-
-    class Meta:
-        model = Order
-        fields = ['id', 'user', 'user_name', 'restaurant', 'order_date', 'shipping_address', 'shipping_fee', 'total',
-                  'delivery_status',
-                  'order_details']

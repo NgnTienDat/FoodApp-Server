@@ -1,23 +1,25 @@
-from venv import create
+from datetime import datetime
+from pickle import FALSE
 
+
+from django.db import transaction
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
-from pandas.io.clipboard import is_available
+from oauthlib.uri_validate import query
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from unicodedata import category
 from django.db.models import Q, Prefetch
-from urllib3 import request
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
-    Menu, Order, OrderDetail, RestaurantAddress
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress,Payment, OrderStatus, PaymentMethod
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
-    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer
+    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, MyAddressSerializer
+
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -230,12 +232,12 @@ class FoodViewSet(viewsets.ModelViewSet):
         max_price = params.get('max_price')
         main_category = params.get('main_category', '').strip()  # send the name of main category: string
         restaurant = params.get('restaurant', '').strip()  # send restaurant_name
-        #Sử dụng Q object to combine query conditions
+        # Sử dụng Q object to combine query conditions
         filters = Q()
 
         if name:
             # queryset = queryset.filter(name__icontains=name)     .filter() is a query,
-            filters &= Q(name__icontains=name)   #  instead òf that, use Q() to filter conditions
+            filters &= Q(name__icontains=name)  # instead òf that, use Q() to filter conditions
             # After all, we are only using 1 query for all conditions
 
         if min_price and max_price:
@@ -247,7 +249,7 @@ class FoodViewSet(viewsets.ModelViewSet):
         if restaurant:
             filters &= Q(restaurant__name__icontains=restaurant)
 
-        queryset = queryset.filter(filters) # 1 query:))
+        queryset = queryset.filter(filters)  # 1 query:))
         return queryset
 
     @action(methods=['post'], detail=True)
@@ -274,9 +276,7 @@ class RestaurantCategoryViewSet(viewsets.ModelViewSet):
         return Response(FoodSerializers(foods, many=True).data)
 
 
-
-
-class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
+class CartViewSet(viewsets.ViewSet, generics.DestroyAPIView):
     serializer_class = CartSerializer
     queryset = Cart.objects.all()
     permission_classes = [permissions.IsAuthenticated]
@@ -310,9 +310,6 @@ class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
 
         return paginator.get_paginated_response(serializer.data)
 
-
-
-
     def get_permissions(self):
         if self.action in ['get_my_cart']:
             return [permissions.IsAuthenticated()]
@@ -323,10 +320,91 @@ class SubCartViewSet(viewsets.ModelViewSet):
     serializer_class = SubCartSerializer
     queryset = SubCart.objects.all()
 
+    @action(methods=['get'], url_path='restaurant-sub-cart', detail=False)
+    def get_sub_cart(self, request):
+        restaurant_id = request.query_params.get('restaurantId')
+        user_id = request.query_params.get('userId')
+
+        cart = get_object_or_404(Cart, user__id=user_id)
+        sub_cart = SubCart.objects.filter(cart__id=cart.id, restaurant__id=restaurant_id).first()
+
+        if not sub_cart:
+            return Response({"detail": "Không tìm thấy giỏ hàng"}, status=404)
+
+        return Response(SubCartSerializer(sub_cart).data)
+
+    @action(methods=['post'], url_path='delete-sub-carts', detail=False)
+    def delete_multiple(self, request):
+        cart_id = request.data.get('cartId')
+        items_number = request.data.get('itemsNumber')
+        ids = request.data.get('ids', [])
+
+        print(request.data)
+        print(cart_id)
+        print(items_number)
+        print(ids)
+
+        cart = get_object_or_404(Cart, pk=cart_id)
+
+        if ids:
+            ids = [int(id) for id in ids]
+            SubCart.objects.filter(id__in=ids).delete()
+
+        cart.items_number -= items_number
+        cart.save()
+
+        if cart.items_number == 0:
+            cart.delete()
+
+        return Response({"message": "Xóa sub cart thành công!"}, status=status.HTTP_200_OK)
+
+
+class MyAddressViewSet(viewsets.ModelViewSet):
+    serializer_class = MyAddressSerializer
+    queryset = MyAddress.objects.all()
+
+    @action(methods=['get'], url_path='my-addresses', detail=False)
+    def get_my_address(self, request):
+        try:
+            addresses = MyAddress.objects.filter(user=request.user)
+        except MyAddress.DoesNotExist:
+            return Response(
+                {"error": "Địa chỉ không tồn tại."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        address = request.data.get('address')
+        latitude = float(request.data.get('latitude'))
+        longitude = float(request.data.get('longitude'))
+        receiver_name = request.data.get('receiver_name')
+        phone_number = request.data.get('phone_number')
+
+        try:
+            my_address = MyAddress.objects.create(user=user, address=address, latitude=latitude,
+                                                  longitude=longitude, receiver_name=receiver_name,
+                                                  phone_number=phone_number)
+
+            return Response({"message": "Thêm địa chỉ thành công!"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class SubCartItemViewSet(viewsets.ModelViewSet):
     serializer_class = SubCartItemSerializer
     queryset = SubCartItem.objects.all()
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # Xác thực và cập nhật dữ liệu
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
 
 
 class AddItemToCart(APIView):
@@ -337,8 +415,6 @@ class AddItemToCart(APIView):
         food_id = int(request.data.get('food_id'))
         quantity = int(request.data.get('quantity', 1))
         note = request.data.get('note', '')
-
-
 
         food = get_object_or_404(Food, id=food_id)
         restaurant = food.restaurant
@@ -357,10 +433,12 @@ class AddItemToCart(APIView):
         )
         if not created:
             sub_cart_item.quantity += quantity
+            print('sub cart item quantity: ', sub_cart_item.quantity)
             sub_cart_item.price = sub_cart_item.quantity * price
+            print('sub cart item price: ', sub_cart_item.price)
             sub_cart_item.save()
 
-        total_price = sum(item.price*item.quantity for item in sub_cart.sub_cart_items.all())
+        total_price = sum(item.price for item in sub_cart.sub_cart_items.all())
         total_quantity = sum(item.quantity for item in sub_cart.sub_cart_items.all())
         sub_cart.total_price = total_price
         sub_cart.total_quantity = total_quantity
@@ -374,20 +452,43 @@ class AddItemToCart(APIView):
                         , status=status.HTTP_200_OK)
 
 
+class UpdateItemToSubCart(APIView):
+
+    def patch(self, request, *args, **kwargs):
+        sub_cart_item_id = int(request.data.get('sub_cart_item_id'))
+        quantity = int(request.data.get('quantity'))
+
+        sub_cart_item = get_object_or_404(SubCartItem, id=sub_cart_item_id)
+
+        food = sub_cart_item.food
+        price = food.price
+        sub_cart = sub_cart_item.sub_cart
+
+        sub_cart_item.quantity += quantity
+        sub_cart_item.price += quantity * price
+
+        sub_cart.total_quantity += quantity
+        sub_cart.total_price += quantity * price
+
+        sub_cart_item.save()
+        sub_cart.save()
+
+        return Response({"message": "Cập nhật thành công."}, status=status.HTTP_200_OK)
+
 
 class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.filter(active=True)
     serializer_class = MenuSerializer
 
-
-class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.prefetch_related(
-        'order_details__food'  # Lấy tất cả các `food` liên kết với `order_details`
-    ).select_related(
-        'user',  # Lấy thông tin `user` trong một truy vấn JOIN
-        'restaurant'  # Lấy thông tin `restaurant` trong một truy vấn JOIN
-    )
-    serializer_class = OrderSerializer
+#
+# class OrderViewSet(viewsets.ModelViewSet):
+#     queryset = Order.objects.prefetch_related(
+#         'order_details__food'  # Lấy tất cả các `food` liên kết với `order_details`
+#     ).select_related(
+#         'user',  # Lấy thông tin `user` trong một truy vấn JOIN
+#         'restaurant'  # Lấy thông tin `restaurant` trong một truy vấn JOIN
+#     )
+#     serializer_class = OrderSerializer
 
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
@@ -435,7 +536,6 @@ class SearchFoodView(APIView):
             filters &= Q(restaurant__name__icontains=restaurant)
             filters |= Q(name__icontains=name) | Q(restaurant__name__icontains=restaurant)
 
-
         food_query = food_query.filter(filters)
 
         # Lấy ra danh sách các nhà hàng có food chứa keyword, mỗi nhà hàng chỉ lấy 2 bản ghi food chứa keyword
@@ -465,7 +565,7 @@ class SearchFoodView(APIView):
             }
             for restaurant in restaurants
         ]
-        return Response(response_data, status = status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class RestaurantFoodsView(APIView):
@@ -479,11 +579,69 @@ class RestaurantFoodsView(APIView):
             return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        orders = self.queryset.filter(user=user)
+
+        serializer = self.get_serializer(orders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        sub_cart_id = int(request.data.get('sub_cart_id'))
+        address_id = int(request.data.get('address_id'))
+        # shipping_address = request.data.get('address')
+        shipping_fee = float(request.data.get('shipping_fee'))
+        total = float(request.data.get('total_price'))  # da bao gom phi ship
+        payment_method = request.data.get('payment')
+        is_successful = False
+
+
+        if payment_method == 'cash':
+            payment_method = PaymentMethod.COD
+        else:
+            payment_method = PaymentMethod.MOMO
+            is_successful = True
+
+        shipping_address = get_object_or_404(MyAddress, id=address_id)
+        sub_cart = get_object_or_404(SubCart, id=sub_cart_id)
+
+        cart = sub_cart.cart
+
+        try:
+            with transaction.atomic():
+                order = Order.objects.create(user=user, restaurant=sub_cart.restaurant,
+                                             shipping_address=shipping_address,
+                                             shipping_fee=shipping_fee,
+                                             total=total,
+                                             delivery_status=OrderStatus.PENDING)
+
+                Payment.objects.create(user=user, order=order,
+                                       created_date=datetime.now,
+                                       amount=total, payment_method=payment_method,
+                                       is_successful=is_successful)
+
+                for s in sub_cart.sub_cart_items.all():
+                    OrderDetail.objects.create(food=s.food, order=order,
+                                               quantity=s.quantity,
+                                               sub_total=s.price)
+
+                sub_cart.delete()
+                cart.items_number -= 1
+
+                cart.save()
+
+                return Response({"message": "Đặt hàng thành công."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 def index(request):
     return HttpResponse("e-food app")
-
-
-
-

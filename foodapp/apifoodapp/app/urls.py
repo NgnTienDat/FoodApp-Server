@@ -13,10 +13,12 @@ router.register('restaurant_categories', views.RestaurantCategoryViewSet)
 router.register('carts', views.CartViewSet)
 router.register('sub-cart', views.SubCartViewSet)
 router.register('sub-cart-item', views.SubCartItemViewSet)
+router.register('my-address', views.MyAddressViewSet)
+router.register('order', views.OrderViewSet)
 router.register('menus', views.MenuViewSet)
-router.register('orders', views.OrderViewSet)
 router.register('order-detail', views.OrderDetailViewSet)
 router.register('restaurant-address', views.AddressRestaurantViewSet)
+
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -24,4 +26,6 @@ urlpatterns = [
     path('api/add-to-cart', views.AddItemToCart.as_view()),
     path('search-food/', views.SearchFoodView.as_view()),
     path('restaurant-foods/<int:restaurant_id>/foods/', views.RestaurantFoodsView.as_view(), name='restaurant-foods'),
+    path('update-sub-cart-item/', views.UpdateItemToSubCart.as_view(), name='update-sub-cart-item'),
+
 ]
