@@ -1,7 +1,10 @@
 from datetime import datetime
 from pickle import FALSE
 
+
 from django.db import transaction
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from oauthlib.uri_validate import query
 from rest_framework import viewsets, permissions, status, generics
@@ -9,14 +12,14 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q, Prefetch
-from sqlalchemy import True_
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
-    MyAddress, Order, Payment, OrderStatus, PaymentMethod, OrderDetail
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress,Payment, OrderStatus, PaymentMethod
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
-    CategoryCreateSerializer, MyAddressSerializer, OrderSerializer
+    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, MyAddressSerializer
+
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -62,7 +65,7 @@ class MainCategoryViewSet(viewsets.ModelViewSet):
 
 
 class RestaurantViewSet(viewsets.ModelViewSet):
-    queryset = Restaurant.objects.filter(active=True)
+    queryset = Restaurant.objects.all()
     serializer_class = RestaurantSerializer
     pagination_class = RestaurantPagination
 
@@ -83,7 +86,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     def inactive(self, request, pk):
         try:
             r = Restaurant.objects.get(pk=pk)
-            r.active = False
+            r.active = not r.active
             r.save()
         except Restaurant.DoesNotExist:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -99,7 +102,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     # 2API lấy danh sách các món ăn và các danh mục món ăn của nhà hàng
     @action(methods=['get'], url_path='foods', detail=True)
     def get_foods(self, request, pk):
-        foods = self.get_object().food_set.select_related('category').filter(is_available=True)
+        foods = self.get_object().food_set.select_related('category')
         q = request.query_params.get("q")
         if q:
             foods = foods.filter(name__icontains=q)
@@ -124,11 +127,46 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
         return Response(RestaurantCategorySerializer(categories, many=True).data)
 
+    @action(methods=['get'], url_path='menus', detail=True)
+    def get_menus(self, request, pk):
+        menus = self.get_object().menus.filter(active=True)
+        q = request.query_params.get("q")
+        if q:
+            menus = menus.filter(name__icontains=q)
+        return Response(MenuSerializer(menus, many=True).data)
+
+    @action(methods=['get'], url_path='orders', detail=True)
+    def get_order(self, request, pk):
+        restaurant = self.get_object()
+        orders = Order.objects.filter(restaurant=restaurant).prefetch_related(
+            'order_details__food'
+        ).select_related(
+            'user', 'restaurant'
+        )
+        return Response(OrderSerializer(orders, many=True).data)
+
+    @action(methods=['get'], url_path='food_report', detail=True)
+    def get_food_report(self, request, pk):
+        restaurant = self.get_object()
+        food_report = OrderDetail.objects.filter(order__restaurant=restaurant).values('food__name').annotate(
+            total_sale=Sum('sub_total'), total_order=Count('food'), order_date=TruncDate('order__order_date'))
+        return Response(food_report)
+
+    @action(methods=['get'], url_path='category_report', detail=True)
+    def get_category_report(self, request, pk):
+        restaurant = self.get_object()
+        category_report = OrderDetail.objects.filter(order__restaurant=restaurant).values(
+            'food__category__name').annotate(
+            total_sale=Sum('sub_total'), total_order=Count('food'), order_date=TruncDate('order__order_date'))
+        return Response(category_report)
+
     def get_serializer_class(self):
         if self.action == 'create_food':
             return FoodCreateSerializer
         if self.action == 'create_category':
             return CategoryCreateSerializer
+        if self.action == 'create_menu':
+            return MenuSerializer
         return RestaurantSerializer  # Do trong viewset của restaurant nên mặc định là c này
 
     # Chú ý: lúc tạo món ăn avf danh mục thì lấy 2 serializer khác
@@ -163,9 +201,24 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['post'], detail=True, url_path='create_menu')
+    def create_menu(self, request, pk=None):
+        restaurant = self.get_object()  # lấy NH từ pk để tạo menu nên khi tạo không cần gửi nhà hàng len
+
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'restaurant': restaurant, 'request': request}
+        )
+        if serializer.is_valid():
+            menu = serializer.save(restaurant=restaurant)
+            return Response(MenuSerializer(menu, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class FoodViewSet(viewsets.ModelViewSet):
-    queryset = Food.objects.filter(is_available=True)
+    queryset = Food.objects.all()
     serializer_class = FoodSerializers
     pagination_class = RestaurantPagination
     print(ServicePeriod.choices)
@@ -199,18 +252,13 @@ class FoodViewSet(viewsets.ModelViewSet):
         queryset = queryset.filter(filters)  # 1 query:))
         return queryset
 
-    def perform_create(self, serializer):
-        print("Received data:", self.request.data)  # Thêm dòng này
-        print("serve_period value:", self.request.data.get('serve_period'))
-        super().perform_create(serializer)
-
     @action(methods=['post'], detail=True)
-    def hide_food(self, request, pk):
+    def set_status_food(self, request, pk):
         try:
             f = Food.objects.get(pk=pk)
-            f.is_available = False
+            f.is_available = not f.is_available
             f.save()
-        except Food.DoesNotExits:
+        except Food.DoesNotExit:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         return Response(data=FoodSerializers(f, context={'request': request}).data,
@@ -428,6 +476,34 @@ class UpdateItemToSubCart(APIView):
         return Response({"message": "Cập nhật thành công."}, status=status.HTTP_200_OK)
 
 
+class MenuViewSet(viewsets.ModelViewSet):
+    queryset = Menu.objects.filter(active=True)
+    serializer_class = MenuSerializer
+
+#
+# class OrderViewSet(viewsets.ModelViewSet):
+#     queryset = Order.objects.prefetch_related(
+#         'order_details__food'  # Lấy tất cả các `food` liên kết với `order_details`
+#     ).select_related(
+#         'user',  # Lấy thông tin `user` trong một truy vấn JOIN
+#         'restaurant'  # Lấy thông tin `restaurant` trong một truy vấn JOIN
+#     )
+#     serializer_class = OrderSerializer
+
+
+class OrderDetailViewSet(viewsets.ModelViewSet):
+    queryset = OrderDetail.objects.select_related(
+        'food'
+    )
+    serializer_class = OrderDetailSerializer
+
+
+class AddressRestaurantViewSet(viewsets.ModelViewSet):
+    queryset = RestaurantAddress.objects.all()
+    serializer_class = RestaurantAddressSerializer
+
+
+
 class SearchFoodView(APIView):
     def get(self, request):
 
@@ -564,6 +640,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 def index(request):

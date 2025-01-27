@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import mark_safe
-from .models import RestaurantCategory, Cart, Food, Restaurant, User, MainCategory, SubCart, SubCartItem
+from .models import RestaurantCategory, Cart, Food, Restaurant, User, MainCategory, SubCart, SubCartItem, Menu, Order, \
+    OrderDetail
 
 
 # Register your models here
@@ -40,11 +41,18 @@ class RestaurantAdmin(admin.ModelAdmin):
 class CartAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'items_number']
 
+
 class SubCartAdmin(admin.ModelAdmin):
     list_display = ['id', 'restaurant', 'cart', 'total_price']
 
+
 class SubCartItemAdmin(admin.ModelAdmin):
     list_display = ['id', 'restaurant', 'food', 'sub_cart', 'quantity', 'price', 'note']
+
+
+class MenuAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'restaurant', "serve_period"]
+
 
 admin_site = FoodAppAdminSite('myfoodapp')
 admin_site.register(Food, FoodAdmin)
@@ -55,3 +63,6 @@ admin_site.register(Restaurant, RestaurantAdmin)
 admin_site.register(Cart, CartAdmin)
 admin_site.register(SubCart, SubCartAdmin)
 admin_site.register(SubCartItem, SubCartItemAdmin)
+admin_site.register(Menu, MenuAdmin)
+admin_site.register(Order, admin.ModelAdmin)
+admin_site.register(OrderDetail, admin.ModelAdmin)
