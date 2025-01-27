@@ -1,6 +1,3 @@
-from sys import meta_path
-from tkinter.constants import CASCADE
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from cloudinary.models import CloudinaryField
@@ -156,7 +153,15 @@ class SubCartItem(models.Model):
 
 class MyAddress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='my_addresses')
+    receiver_name = models.CharField(max_length=100, blank=False, null=True)
+    phone_number = models.CharField(max_length=10, blank=True, null=True)
+
     address = models.TextField(null=False, blank=False)
+    latitude = models.FloatField(null=True, blank=False)
+    longitude = models.FloatField(null=True, blank=False)
+
+    def __str__(self):
+        return f'{self.address}'
 
 
 class Order(models.Model):
@@ -166,17 +171,9 @@ class Order(models.Model):
     shipping_fee = models.FloatField(default=0)
     total = models.FloatField(default=0)
     delivery_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
-    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL, null=True, related_name='orders')
     order_date = models.DateTimeField(auto_now_add=True, null=True)
 
-    # def save(self, *args, **kwargs):
-    #     if not self.pk:
-    #         super().save(*args, **kwargs)
-    #
-    #     self.total = sum(
-    #         detail.sub_total for detail in self.order_details.all()
-    #     ) + self.shipping_fee
-    #     super().save(*args, **kwargs)
+
 
 
 class Payment(models.Model):
