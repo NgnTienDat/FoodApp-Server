@@ -66,7 +66,7 @@ class MainCategory(models.Model):
 
 
 class RestaurantCategory(models.Model):
-    name = models.CharField(max_length=100, null=False, unique=True)
+    name = models.CharField(max_length=100, null=False)
 
     active = models.BooleanField(default=True)
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name="restaurant_categories")
@@ -109,7 +109,7 @@ class Food(models.Model):
     description = models.TextField(null=True, blank=True)
     category = models.ForeignKey(RestaurantCategory, on_delete=models.SET_NULL, null=True)
     image = CloudinaryField('image', null=True)
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='foods')
     is_available = models.BooleanField(default=True)
     serve_period = models.CharField(max_length=20, choices=ServicePeriod.choices, null=True, blank=True)
     available_start = models.TimeField(null=True, blank=True)
@@ -141,6 +141,8 @@ class SubCart(models.Model):
     cart = models.ForeignKey(Cart, related_name='sub_carts', on_delete=models.CASCADE)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='sub_carts')
     total_price = models.FloatField(default=0)
+    total_quantity = models.IntegerField(default=0)
+
 
 
 class SubCartItem(models.Model):

@@ -3,11 +3,14 @@ from venv import create
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
+from pandas.io.clipboard import is_available
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from unicodedata import category
+from django.db.models import Q, Prefetch
+from urllib3 import request
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
     Menu, Order, OrderDetail, RestaurantAddress
@@ -18,7 +21,7 @@ from .serializers import RestaurantSerializer, MainCategorySerializer, UserSeria
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
-from .paginators import RestaurantPagination
+from .paginators import RestaurantPagination, MySubCartPagination
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView,
@@ -219,13 +222,33 @@ class FoodViewSet(viewsets.ModelViewSet):
     print(ServicePeriod.choices)
 
     def get_queryset(self):
-        query = self.queryset
+        queryset = self.queryset
+        params = self.request.query_params
 
-        q = self.request.query_params.get("q")
-        if q:
-            query = query.filter(name__icontains=q)
+        name = params.get('name', '').strip()
+        min_price = params.get('min_price')
+        max_price = params.get('max_price')
+        main_category = params.get('main_category', '').strip()  # send the name of main category: string
+        restaurant = params.get('restaurant', '').strip()  # send restaurant_name
+        #Sử dụng Q object to combine query conditions
+        filters = Q()
 
-        return query
+        if name:
+            # queryset = queryset.filter(name__icontains=name)     .filter() is a query,
+            filters &= Q(name__icontains=name)   #  instead òf that, use Q() to filter conditions
+            # After all, we are only using 1 query for all conditions
+
+        if min_price and max_price:
+            filters &= Q(price__gte=min_price, price__lte=max_price)
+
+        if main_category:
+            filters &= Q(name__icontains=main_category)
+
+        if restaurant:
+            filters &= Q(restaurant__name__icontains=restaurant)
+
+        queryset = queryset.filter(filters) # 1 query:))
+        return queryset
 
     @action(methods=['post'], detail=True)
     def set_status_food(self, request, pk):
@@ -248,30 +271,9 @@ class RestaurantCategoryViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], url_path='foods', detail=True)
     def get_foods(self, request, pk):
         foods = self.get_object().food_set.filter(is_available=True)
-
         return Response(FoodSerializers(foods, many=True).data)
 
-        queryset = self.queryset
-        params = self.request.query_params
 
-        name = params.get('name')
-        if name:
-            queryset = queryset.filter(name__icontains=name)
-
-        min_price = params.get('min_price')
-        max_price = params.get('max_price')
-        if min_price and max_price:
-            queryset = queryset.filter(price__gte=min_price, price__lte=max_price)
-
-        main_category = params.get('main_category')  # send the name of main category: string
-        if main_category:
-            queryset = queryset.filter(name__icontains=main_category)
-
-        restaurant = params.get('restaurant')  # send restaurant_name
-        if restaurant:
-            queryset = queryset.filter(restaurant__name__icontains=restaurant)
-
-        return queryset
 
 
 class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
@@ -290,6 +292,26 @@ class CartViewSet(viewsets.ViewSet, generics.RetrieveAPIView):
             )
 
         return Response(CartSerializer(cart).data)
+
+    @action(methods=['get'], url_path='sub-carts', detail=False)
+    def get_my_sub_cart(self, request):
+        try:
+            cart = Cart.objects.get(user=request.user)
+        except Cart.DoesNotExist:
+            return Response(
+                {"error": "Giỏ hàng không tồn tại."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        sub_carts = SubCart.objects.filter(cart=cart)
+        paginator = MySubCartPagination()
+        paginated_subcarts = paginator.paginate_queryset(sub_carts, request)
+        serializer = SubCartSerializer(paginated_subcarts, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
+
+
+
 
     def get_permissions(self):
         if self.action in ['get_my_cart']:
@@ -316,6 +338,8 @@ class AddItemToCart(APIView):
         quantity = int(request.data.get('quantity', 1))
         note = request.data.get('note', '')
 
+
+
         food = get_object_or_404(Food, id=food_id)
         restaurant = food.restaurant
         price = food.price
@@ -336,8 +360,10 @@ class AddItemToCart(APIView):
             sub_cart_item.price = sub_cart_item.quantity * price
             sub_cart_item.save()
 
-        total_price = sum(item.price for item in sub_cart.sub_cart_items.all())
-        sub_cart.total_price += total_price
+        total_price = sum(item.price*item.quantity for item in sub_cart.sub_cart_items.all())
+        total_quantity = sum(item.quantity for item in sub_cart.sub_cart_items.all())
+        sub_cart.total_price = total_price
+        sub_cart.total_quantity = total_quantity
         sub_cart.save()
 
         items_number = cart.sub_carts.all().count()
@@ -346,6 +372,7 @@ class AddItemToCart(APIView):
 
         return Response({'message': 'Thêm thành công!', 'cart': CartSerializer(cart).data}
                         , status=status.HTTP_200_OK)
+
 
 
 class MenuViewSet(viewsets.ModelViewSet):
@@ -375,5 +402,88 @@ class AddressRestaurantViewSet(viewsets.ModelViewSet):
     serializer_class = RestaurantAddressSerializer
 
 
+
+class SearchFoodView(APIView):
+    def get(self, request):
+
+        params = request.query_params
+
+        name = params.get('name', '').strip()
+        min_price = params.get('min_price')
+        max_price = params.get('max_price')
+        main_categories = params.getlist('main_category')  # send the name of main category: string
+        restaurant = params.get('restaurant', '').strip()  # send restaurant_name
+
+        food_query = Food.objects.filter(is_available=True)
+
+        filters = Q()
+
+        if name:
+            # filters &= Q(name__icontains=name, restaurant__name__icontains=name)
+            filters |= Q(name__icontains=name) | Q(restaurant__name__icontains=name)
+        if min_price and max_price:
+            filters &= Q(price__gte=min_price, price__lte=max_price)
+
+        if main_categories:
+            # Duyệt qua từng giá trị trong mảng main_categories
+            category_filters = Q()
+            for c in main_categories:
+                category_filters |= Q(name__icontains=c)  # Hoặc field phù hợp
+            filters &= category_filters
+
+        if restaurant:
+            filters &= Q(restaurant__name__icontains=restaurant)
+            filters |= Q(name__icontains=name) | Q(restaurant__name__icontains=restaurant)
+
+
+        food_query = food_query.filter(filters)
+
+        # Lấy ra danh sách các nhà hàng có food chứa keyword, mỗi nhà hàng chỉ lấy 2 bản ghi food chứa keyword
+        # sử dụng prefetch_related để tối ưu hiệu suất truy vấn, tránh vấn đề queries N+1, lucs này chỉ cần 2 câu query
+        restaurants = Restaurant.objects.prefetch_related(
+            Prefetch(
+                'foods',
+                queryset=food_query[:2],
+                to_attr='filtered_foods'
+            )
+        ).filter(foods__in=food_query).distinct()
+
+        response_data = [
+            {
+                'id': restaurant.id,
+                'restaurant': restaurant.name,
+                'image': restaurant.image.url if restaurant.image else None,
+                'items': [
+                    {
+                        'id': food.id,
+                        'name': food.name,
+                        'price': f'{food.price:,.0f}đ',
+                        'image': food.image.url if food.image else None,
+                    }
+                    for food in restaurant.filtered_foods
+                ],
+            }
+            for restaurant in restaurants
+        ]
+        return Response(response_data, status = status.HTTP_200_OK)
+
+
+class RestaurantFoodsView(APIView):
+    def get(self, request, restaurant_id):
+        try:
+            restaurant = Restaurant.objects.get(id=restaurant_id)
+            foods = restaurant.foods.filter(is_available=True).all()
+            serializer = FoodSerializers(foods, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Restaurant.DoesNotExist:
+            return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
 def index(request):
     return HttpResponse("e-food app")
+
+
+
+
