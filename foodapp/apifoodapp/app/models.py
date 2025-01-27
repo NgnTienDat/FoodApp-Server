@@ -75,15 +75,29 @@ class RestaurantCategory(models.Model):
         return self.name
 
 
+class RestaurantAddress(models.Model):
+    address = models.CharField(max_length=100)
+    district = models.CharField(max_length=50, null=True)
+    city = models.CharField(max_length=50, null=True)
+    latitude = models.FloatField()  # Vĩ độ
+    longitude = models.FloatField()  # Kinh độ
+
+    def __str__(self):
+        return f"{self.address}, {self.district}, {self.city}"
+
+
 class Restaurant(models.Model):
     name = models.CharField(max_length=100, blank=False, null=False)
-    address = models.CharField(max_length=255, blank=True)
+    address = models.CharField(max_length=100, null=True)
+    latitude = models.FloatField(null=True)  # Vĩ độ
+    longitude = models.FloatField(null=True)  # Kinh độ
     phone_number = models.CharField(max_length=10, blank=True, null=True)
     owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurants")
     star_rate = models.FloatField(null=True)
     active = models.BooleanField(default=True)
     image = CloudinaryField('image', null=True)
     followers = models.ManyToManyField(User, related_name='following_restaurants')
+    shipping_fee = models.FloatField(null=True)
 
     def __str__(self):
         return self.name
@@ -118,7 +132,6 @@ class Review(models.Model):
         return f'{self.user}: {self.comment}'
 
 
-
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='my_cart')
     items_number = models.IntegerField(default=0)
@@ -137,7 +150,7 @@ class SubCartItem(models.Model):
     food = models.ForeignKey(Food, on_delete=models.CASCADE, null=False, related_name='sub_cart_items')
     sub_cart = models.ForeignKey(SubCart, on_delete=models.CASCADE, related_name='sub_cart_items')
     quantity = models.IntegerField(default=1)
-    price = models.FloatField(default=0, null=False) # tự động tính quantity * food.price
+    price = models.FloatField(default=0, null=False)  # tự động tính quantity * food.price
     note = models.TextField()
 
 
@@ -149,11 +162,21 @@ class MyAddress(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='my_orders')
     restaurant = models.ForeignKey(Restaurant, on_delete=models.SET_NULL, null=True, related_name='restaurant_orders')
-    shipping_address = models.ForeignKey(MyAddress, on_delete=models.SET_NULL,null=True, related_name='orders')
+    shipping_address = models.ForeignKey(MyAddress, on_delete=models.SET_NULL, null=True, related_name='orders')
     shipping_fee = models.FloatField(default=0)
     total = models.FloatField(default=0)
     delivery_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
-    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL,null=True, related_name='orders')
+    cart = models.ForeignKey(Cart, on_delete=models.SET_NULL, null=True, related_name='orders')
+    order_date = models.DateTimeField(auto_now_add=True, null=True)
+
+    # def save(self, *args, **kwargs):
+    #     if not self.pk:
+    #         super().save(*args, **kwargs)
+    #
+    #     self.total = sum(
+    #         detail.sub_total for detail in self.order_details.all()
+    #     ) + self.shipping_fee
+    #     super().save(*args, **kwargs)
 
 
 class Payment(models.Model):
@@ -166,10 +189,14 @@ class Payment(models.Model):
 
 
 class OrderDetail(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='oder_details')
-    food = models.ForeignKey(Food, on_delete=models.CASCADE, related_name='oder_details')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_details')
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, related_name='food_details')
     quantity = models.IntegerField(default=1)
     sub_total = models.FloatField(default=0)
+
+    # def save(self, *args, **kwargs):
+    #     self.sub_total = self.food.price * self.quantity
+    #     super(OrderDetail, self).save(*args, **kwargs)
 
 
 class Menu(models.Model):

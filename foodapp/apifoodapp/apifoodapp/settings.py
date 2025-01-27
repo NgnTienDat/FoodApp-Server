@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'drf_yasg',
     'cloudinary',
-    'debug_toolbar',
+    'debug_toolbar'
 ]
 
 cloudinary.config(
@@ -64,7 +64,7 @@ MIDDLEWARE = [
 ]
 
 INTERNAL_IPS = [
-    '127.0.0.1', '192.168.1.213'
+    '127.0.0.1', '192.168.1.213', '192.168.10.200',
 ]
 
 ROOT_URLCONF = 'apifoodapp.urls'
@@ -151,3 +151,4 @@ AUTH_USER_MODEL = 'app.User'
 
 CLIENT_ID = 'QvhI26LJ0bwHurLgrMoEYRy5OPeMrMLbmGLtZxGE'
 CLIENT_SECRET = 'Muy7Hq81uX5ElvZTT3zMr84CkzreJ4qXZsiTc7OYYwMCrNAL6UxZTeztJRri2mGxihlT2yDaqX9ZDpCbmx2FBkKBTWEwJ0dZzOeGaxSKG001yxXpodHBpXwk6DvVVmCY'
+
