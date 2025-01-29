@@ -1,4 +1,3 @@
-
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
@@ -6,7 +5,6 @@ from rest_framework.serializers import ModelSerializer
 
 from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
     Menu, Order, OrderDetail, RestaurantAddress, MyAddress
-
 
 
 class BaseSerializer(ModelSerializer):
@@ -70,8 +68,8 @@ class RestaurantSerializer(ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'address', 'address', 'latitude', 'longitude', 'phone_number', 'owner', 'star_rate',
-                  'image', 'active']
+        fields = ['id', 'name', 'address', 'address', 'latitude', 'longitude', 'followers', 'owner', 'star_rate',
+                  'image', 'active', 'shipping_fee']
 
     # def create(self, validated_data):
     #     owner_data = validated_data.pop('owner')
@@ -105,7 +103,7 @@ class RestaurantCategorySerializer(BaseSerializer):
 
 
 class FoodSerializers(BaseSerializer):
-    restaurant = RestaurantSP(read_only=True)
+    # restaurant = RestaurantSP(read_only=True)
     # category = RestaurantCategorySerializer()
     image = serializers.ImageField(required=False)
     serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
@@ -146,25 +144,25 @@ class OrderDetailSerializer(BaseSerializer):
 
     class Meta:
         model = OrderDetail
-        fields = ['id', 'food', 'order', 'quantity', 'sub_total']
+        fields = ['id', 'food', 'order', 'quantity', 'sub_total', 'order']
 
 
 class OrderSerializer(BaseSerializer):
-    # order_details = OrderDetailSerializer(many=True)
-    # user = UserSerializer()
+    order_details = OrderDetailSerializer(many=True, read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    shipping_address = serializers.CharField(source='shipping_address.address', read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'restaurant', 'shipping_address', 'shipping_fee', 'total', 'delivery_status']
-
+        fields = ['id', 'user', 'user_name', 'restaurant', 'order_date', 'shipping_address', 'shipping_fee', 'total',
+                  'delivery_status',
+                  'order_details']
 
 
 class PaymentSerializer(ModelSerializer):
-
     class Meta:
         model = Cart
         fields = ['id', 'user', 'order', 'created_date', 'amount', 'payment_method', 'is_successful']
-
 
 
 class CartSerializer(ModelSerializer):
@@ -201,10 +199,10 @@ class CategoryCreateSerializer(BaseSerializer):
 
 
 class MyAddressSerializer(BaseSerializer):
-
     class Meta:
         model = MyAddress
         fields = ['id', 'user', 'receiver_name', 'phone_number', 'address', 'latitude', 'longitude']
+
 
 class FoodDB(ModelSerializer):
     class Meta:
@@ -239,4 +237,3 @@ class MenuSerializer(ModelSerializer):
 #         fields = ['id', 'user', 'user_name', 'restaurant', 'order_date', 'shipping_address', 'shipping_fee', 'total',
 #                   'delivery_status',
 #                   'order_details']
-

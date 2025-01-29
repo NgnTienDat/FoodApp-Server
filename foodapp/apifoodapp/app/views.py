@@ -1,7 +1,6 @@
 from datetime import datetime
 from pickle import FALSE
 
-
 from django.db import transaction
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate
@@ -12,14 +11,16 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q, Prefetch
+from django.core.mail import send_mail
+from rest_framework.decorators import action
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
-    Menu, Order, OrderDetail, RestaurantAddress, MyAddress,Payment, OrderStatus, PaymentMethod
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Payment, OrderStatus, PaymentMethod
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
-    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, MyAddressSerializer
-
+    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, \
+    MyAddressSerializer
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -102,7 +103,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     # 2API lấy danh sách các món ăn và các danh mục món ăn của nhà hàng
     @action(methods=['get'], url_path='foods', detail=True)
     def get_foods(self, request, pk):
-        foods = self.get_object().food_set.select_related('category')
+        foods = self.get_object().foods.select_related('category')
         q = request.query_params.get("q")
         if q:
             foods = foods.filter(name__icontains=q)
@@ -169,6 +170,19 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             return MenuSerializer
         return RestaurantSerializer  # Do trong viewset của restaurant nên mặc định là c này
 
+    # gửi mail cho flower khi thêm món ăn
+    def send_email(self, restaurant, food):
+        followers = restaurant.followers.all()
+        emails = [f.email for f in followers if f.email]
+        if emails:
+            send_mail(
+                subject=f"Nhà hàng {restaurant.name} có món ăn mới",
+                message=f"Món ăn {food.name} vừa được thêm vào thực đơn !!!",
+                from_email='lequoctrunggg@gmail.com',
+                recipient_list=emails,
+                fail_silently=False,
+            )
+
     # Chú ý: lúc tạo món ăn avf danh mục thì lấy 2 serializer khác
     @action(methods=['post'], detail=True, url_path='create_food')
     def create_food(self, request, pk=None):
@@ -181,6 +195,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             food = serializer.save(restaurant=restaurant)
+            self.send_email(restaurant, food)
             return Response(FoodSerializers(food, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -480,15 +495,15 @@ class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.filter(active=True)
     serializer_class = MenuSerializer
 
-#
-# class OrderViewSet(viewsets.ModelViewSet):
-#     queryset = Order.objects.prefetch_related(
-#         'order_details__food'  # Lấy tất cả các `food` liên kết với `order_details`
-#     ).select_related(
-#         'user',  # Lấy thông tin `user` trong một truy vấn JOIN
-#         'restaurant'  # Lấy thông tin `restaurant` trong một truy vấn JOIN
-#     )
-#     serializer_class = OrderSerializer
+
+class OrderRestaurantViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.prefetch_related(
+        'order_details__food'  # Lấy tất cả các `food` liên kết với `order_details`
+    ).select_related(
+        'user',  # Lấy thông tin `user` trong một truy vấn JOIN
+        'restaurant'  # Lấy thông tin `restaurant` trong một truy vấn JOIN
+    )
+    serializer_class = OrderSerializer
 
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
@@ -501,7 +516,6 @@ class OrderDetailViewSet(viewsets.ModelViewSet):
 class AddressRestaurantViewSet(viewsets.ModelViewSet):
     queryset = RestaurantAddress.objects.all()
     serializer_class = RestaurantAddressSerializer
-
 
 
 class SearchFoodView(APIView):
@@ -601,7 +615,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         payment_method = request.data.get('payment')
         is_successful = False
 
-
         if payment_method == 'cash':
             payment_method = PaymentMethod.COD
         else:
@@ -640,7 +653,6 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 def index(request):

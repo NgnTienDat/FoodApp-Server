@@ -94,7 +94,7 @@ class Restaurant(models.Model):
     active = models.BooleanField(default=True)
     image = CloudinaryField('image', null=True)
     followers = models.ManyToManyField(User, related_name='following_restaurants')
-    shipping_fee = models.FloatField(null=True)
+    shipping_fee = models.FloatField(max_length=100, null=True)
 
     def __str__(self):
         return self.name
@@ -141,7 +141,6 @@ class SubCart(models.Model):
     total_quantity = models.IntegerField(default=0)
 
 
-
 class SubCartItem(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='sub_cart_items')
     food = models.ForeignKey(Food, on_delete=models.CASCADE, null=False, related_name='sub_cart_items')
@@ -172,8 +171,6 @@ class Order(models.Model):
     total = models.FloatField(default=0)
     delivery_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
     order_date = models.DateTimeField(auto_now_add=True, null=True)
-
-
 
 
 class Payment(models.Model):

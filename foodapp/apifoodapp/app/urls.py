@@ -3,7 +3,6 @@ from . import views
 from .admin import admin_site
 from rest_framework.routers import DefaultRouter
 
-
 router = DefaultRouter()
 router.register('restaurants', views.RestaurantViewSet)
 router.register('main_categories', views.MainCategoryViewSet)
@@ -18,7 +17,7 @@ router.register('order', views.OrderViewSet)
 router.register('menus', views.MenuViewSet)
 router.register('order-detail', views.OrderDetailViewSet)
 router.register('restaurant-address', views.AddressRestaurantViewSet)
-
+router.register('order_restaurant', views.OrderRestaurantViewSet, basename='order_restaurant')
 
 urlpatterns = [
     path('', include(router.urls)),
