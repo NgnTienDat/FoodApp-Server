@@ -15,12 +15,12 @@ from django.core.mail import send_mail
 from rest_framework.decorators import action
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
-Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Payment, OrderStatus, PaymentMethod, Comment, Review
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Payment, OrderStatus, PaymentMethod, Comment, Review
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
     CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, \
-MyAddressSerializer, RestaurantFollowers, CommentSerializer, ReviewSerializer
+    MyAddressSerializer, RestaurantFollowers, CommentSerializer, ReviewSerializer
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -725,6 +725,14 @@ class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        restaurant = get_object_or_404(Restaurant, owner=user)
+        reviews = Review.objects.filter(restaurant=restaurant).all()
+        serializer = ReviewSerializer(reviews, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         user = request.user
