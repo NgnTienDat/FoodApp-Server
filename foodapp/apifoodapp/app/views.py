@@ -177,7 +177,12 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         if emails:
             send_mail(
                 subject=f"Nhà hàng {restaurant.name} có món ăn mới",
-                message=f"Món ăn {food.name} vừa được thêm vào thực đơn !!!",
+                message=f"""\
+                Xin chào,
+                Nhà hàng {restaurant.name} vừa thêm món {food.name} vào thực đơn!
+                Nhanh tay đặt hàng để thưởng thức món ngon mới nhất!
+                Cảm ơn quý khách!
+                """,
                 from_email='lequoctrunggg@gmail.com',
                 recipient_list=emails,
                 fail_silently=False,
