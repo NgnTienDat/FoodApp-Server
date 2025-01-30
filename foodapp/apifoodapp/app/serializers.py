@@ -4,8 +4,7 @@ from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
 from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
-    Menu, Order, OrderDetail, RestaurantAddress, MyAddress
-
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Comment, Review
 
 class BaseSerializer(ModelSerializer):
     image = SerializerMethodField(source='image')
@@ -86,6 +85,25 @@ class RestaurantSP(ModelSerializer):
         fields = ['id', 'name', 'image']
 
 
+class RestaurantName(ModelSerializer):
+    class Meta:
+        model = Restaurant
+        fields = ['id', 'name']
+
+
+class RestaurantFollowers(ModelSerializer):
+    image = serializers.ImageField(required=False)
+    is_following = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Restaurant
+        fields = ['id', 'name', 'address', 'image', 'is_following']
+
+    def get_is_following(self, obj):
+        user = self.context['request'].user
+        return obj.followers.filter(id=user.id).exists()
+
+
 class MainCategorySerializer(ModelSerializer):
     image = serializers.ImageField(required=False)
 
@@ -139,8 +157,16 @@ class SubCartSerializer(ModelSerializer):
         fields = ['id', 'cart', 'restaurant', 'total_price', 'total_quantity', 'sub_cart_items']
 
 
+class FoodODSerializers(BaseSerializer):
+    image = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Food
+        fields = ["id", "name", "price", "image"]
+
+
 class OrderDetailSerializer(BaseSerializer):
-    food = FoodSerializers()
+    food = FoodODSerializers()
 
     class Meta:
         model = OrderDetail
@@ -219,6 +245,30 @@ class MenuSerializer(ModelSerializer):
     class Meta:
         model = Menu
         fields = ['id', 'name', 'restaurant', 'description', 'food', 'serve_period', 'active']
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ['id', 'content', 'created_date', 'user']
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    restaurant_comment = CommentSerializer(read_only=True)  # Chỉ đọc thông tin phản hồi của nhà hàng
+    # restaurant_comment_id = serializers.PrimaryKeyRelatedField(
+    #     queryset=Comment.objects.all(),
+    #     source='restaurant_comment',
+    #     write_only=True,
+    #     required=False
+    # )  # Để ghi nhận bình luận nhà hàng qua ID
+
+    class Meta:
+        model = Review
+        fields = ['id', 'stars', 'user', 'food', 'restaurant', 'customer_comment',
+                  'restaurant_comment', 'created_date']
+
+
+
 
 #
 # class OrderDetailSerializer(ModelSerializer):
