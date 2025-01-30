@@ -6,7 +6,6 @@ from rest_framework.serializers import ModelSerializer
 from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
     Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Comment, Review
 
-
 class BaseSerializer(ModelSerializer):
     image = SerializerMethodField(source='image')
 
@@ -68,8 +67,8 @@ class RestaurantSerializer(ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'address', 'address', 'latitude', 'longitude', 'phone_number', 'owner', 'star_rate',
-                  'image', 'active']
+        fields = ['id', 'name', 'address', 'address', 'latitude', 'longitude', 'followers', 'owner', 'star_rate',
+                  'image', 'active', 'shipping_fee']
 
     # def create(self, validated_data):
     #     owner_data = validated_data.pop('owner')
@@ -122,7 +121,7 @@ class RestaurantCategorySerializer(BaseSerializer):
 
 
 class FoodSerializers(BaseSerializer):
-    restaurant = RestaurantSP(read_only=True)
+    # restaurant = RestaurantSP(read_only=True)
     # category = RestaurantCategorySerializer()
     image = serializers.ImageField(required=False)
     serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
@@ -171,19 +170,19 @@ class OrderDetailSerializer(BaseSerializer):
 
     class Meta:
         model = OrderDetail
-        fields = ['id', 'food', 'order', 'quantity', 'sub_total', 'evaluated']
+        fields = ['id', 'food', 'order', 'quantity', 'sub_total', 'order']
 
 
 class OrderSerializer(BaseSerializer):
-    order_details = OrderDetailSerializer(many=True)
-    restaurant = RestaurantName()
-
-    # user = UserSerializer()
+    order_details = OrderDetailSerializer(many=True, read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    shipping_address = serializers.CharField(source='shipping_address.address', read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'restaurant', 'shipping_address', 'shipping_fee', 'total', 'delivery_status',
-                  'order_date', 'order_details']
+        fields = ['id', 'user', 'user_name', 'restaurant', 'order_date', 'shipping_address', 'shipping_fee', 'total',
+                  'delivery_status',
+                  'order_details']
 
 
 class PaymentSerializer(ModelSerializer):
