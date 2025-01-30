@@ -1,12 +1,11 @@
 from datetime import datetime
 from pickle import FALSE
-
+from venv import create
 
 from django.db import transaction
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
-from oauthlib.uri_validate import query
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -14,12 +13,12 @@ from rest_framework.views import APIView
 from django.db.models import Q, Prefetch
 
 from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCartItem, RestaurantCategory, ServicePeriod, \
-    Menu, Order, OrderDetail, RestaurantAddress, MyAddress,Payment, OrderStatus, PaymentMethod
+    Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Payment, OrderStatus, PaymentMethod, Comment, Review
 
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
-    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, MyAddressSerializer
-
+    CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, \
+    MyAddressSerializer, RestaurantFollowers, CommentSerializer, ReviewSerializer
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -420,6 +419,9 @@ class AddItemToCart(APIView):
         restaurant = food.restaurant
         price = food.price
 
+        print('food name: ', food.name)
+        print('quantity: ', quantity)
+
         cart, created = Cart.objects.get_or_create(user=user)
 
         sub_cart, created = SubCart.objects.get_or_create(cart=cart, restaurant=restaurant)
@@ -428,7 +430,7 @@ class AddItemToCart(APIView):
             food=food, sub_cart=sub_cart,
             defaults={'restaurant': restaurant,
                       'quantity': quantity,
-                      'price': price,
+                      'price': price * quantity,
                       'note': note}
         )
         if not created:
@@ -480,6 +482,7 @@ class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.filter(active=True)
     serializer_class = MenuSerializer
 
+
 #
 # class OrderViewSet(viewsets.ModelViewSet):
 #     queryset = Order.objects.prefetch_related(
@@ -501,7 +504,6 @@ class OrderDetailViewSet(viewsets.ModelViewSet):
 class AddressRestaurantViewSet(viewsets.ModelViewSet):
     queryset = RestaurantAddress.objects.all()
     serializer_class = RestaurantAddressSerializer
-
 
 
 class SearchFoodView(APIView):
@@ -586,7 +588,14 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        orders = self.queryset.filter(user=user)
+        delivery_status = request.query_params.get('status')
+        orders = Order.objects.filter(user=user)
+        filters = Q()
+
+        if delivery_status:
+            filters = Q(delivery_status=delivery_status)
+
+        orders = orders.filter(filters)
 
         serializer = self.get_serializer(orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -600,7 +609,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         total = float(request.data.get('total_price'))  # da bao gom phi ship
         payment_method = request.data.get('payment')
         is_successful = False
-
 
         if payment_method == 'cash':
             payment_method = PaymentMethod.COD
@@ -635,12 +643,109 @@ class OrderViewSet(viewsets.ModelViewSet):
                 cart.items_number -= 1
 
                 cart.save()
+                if cart.items_number == 0:
+                    cart.delete()
 
                 return Response({"message": "Đặt hàng thành công."}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class FollowRestaurantAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, restaurant_id):
+        restaurant = get_object_or_404(Restaurant, id=restaurant_id)
+        user = request.user
+
+        if restaurant.followers.filter(id=user.id).exists():
+            restaurant.followers.remove(user)
+            return Response({"message": "Hủy theo dõi thành công", "following": False}, status=status.HTTP_200_OK)
+        else:
+            # Nếu chưa theo dõi, thêm vào danh sách
+            restaurant.followers.add(user)
+            print('fol', restaurant.followers)
+            return Response({"message": "Theo dõi thành công", "following": True}, status=status.HTTP_200_OK)
+
+    def get(self, request, restaurant_id):
+        restaurant = get_object_or_404(Restaurant, id=restaurant_id)
+
+        # Sử dụng serializer
+        serializer = RestaurantFollowers(restaurant, context={'request': request})
+
+        # Trả về thông tin đã serialize
+        return Response(serializer.data)
+
+
+class FollowedRestaurantsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = RestaurantPagination
+
+    def get(self, request):
+        user = request.user
+
+        # Lấy danh sách các nhà hàng mà người dùng đang theo dõi
+        followed_restaurants = Restaurant.objects.filter(followers=user)
+
+        # Sử dụng serializer để chuyển đổi dữ liệu
+        serializer = RestaurantFollowers(followed_restaurants, many=True, context={'request': request})
+
+        # Trả về danh sách nhà hàng đã theo dõi
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        customer_comment = request.data.get('customer_comment')
+        stars = int(request.data.get('rate'))
+        order_detail_id = int(request.data.get('order_detail_id'))
+
+        order_detail = get_object_or_404(OrderDetail, id=order_detail_id)
+        food = order_detail.food
+        restaurant = food.restaurant
+
+        review = Review.objects.create(user=user, stars=stars, food=food, restaurant=restaurant, customer_comment=customer_comment)
+        order_detail.evaluated = True
+        order_detail.save()
+        serializer = self.get_serializer(review)
+
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+    def partial_update(self, request, *args, **kwargs):
+        user = request.user
+        restaurant_reply = request.data.get('restaurant_reply')
+
+        if not restaurant_reply:
+            return Response({"error": "Phản hồi không được để trống"}, status=status.HTTP_400_BAD_REQUEST)
+
+        restaurant_comment = Comment.objects.create(user=user, content=restaurant_reply)
+        review = self.get_object()
+        review.restaurant_comment=restaurant_comment
+        review.save()
+
+        print(review)
+        serializer = self.get_serializer(review, partial=True)
+
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 def index(request):
