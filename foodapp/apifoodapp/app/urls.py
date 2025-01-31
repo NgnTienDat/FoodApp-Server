@@ -17,6 +17,7 @@ router.register('order', views.OrderViewSet)
 router.register('menus', views.MenuViewSet)
 router.register('order-detail', views.OrderDetailViewSet)
 router.register('restaurant-address', views.AddressRestaurantViewSet)
+router.register('order_restaurant', views.OrderRestaurantViewSet, basename='order_restaurant')
 router.register('comments', views.CommentViewSet)
 router.register('reviews', views.ReviewViewSet)
 

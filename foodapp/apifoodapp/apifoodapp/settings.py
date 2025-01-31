@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'drf_yasg',
     'cloudinary',
-    'debug_toolbar'
+    'debug_toolbar',
+    # 'django_celery_email',
 ]
 
 cloudinary.config(
@@ -156,3 +157,10 @@ AUTH_USER_MODEL = 'app.User'
 CLIENT_ID = 'QvhI26LJ0bwHurLgrMoEYRy5OPeMrMLbmGLtZxGE'
 CLIENT_SECRET = 'Muy7Hq81uX5ElvZTT3zMr84CkzreJ4qXZsiTc7OYYwMCrNAL6UxZTeztJRri2mGxihlT2yDaqX9ZDpCbmx2FBkKBTWEwJ0dZzOeGaxSKG001yxXpodHBpXwk6DvVVmCY'
 
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'lequoctrunggg@gmail.com'
+EMAIL_HOST_PASSWORD = 'tanx bduy nlqo eeul'
