@@ -125,13 +125,14 @@ class Comment(models.Model):
     def __str__(self):
         return f"Comment by {self.user.username} on {self.created_date}"
 
+
 class Review(models.Model):
     stars = models.IntegerField(default=5)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')  # Người mua món đánh giá review
     food = models.ForeignKey('Food', on_delete=models.CASCADE, related_name='reviews')  # Món ăn liên quan
     restaurant = models.ForeignKey('Restaurant', on_delete=models.CASCADE, related_name='reviews')  # Nhà hàng liên quan
     customer_comment = models.TextField(null=True, blank=True)
-    created_date = models.DateTimeField(auto_now_add=True)
+    created_date = models.DateTimeField(auto_now_add=True, null=True)
     restaurant_comment = models.OneToOneField(
         Comment,
         on_delete=models.SET_NULL,
@@ -203,8 +204,6 @@ class OrderDetail(models.Model):
     quantity = models.IntegerField(default=1)
     sub_total = models.FloatField(default=0)
     evaluated = models.BooleanField(default=False)
-
-
 
     # def save(self, *args, **kwargs):
     #     self.sub_total = self.food.price * self.quantity
