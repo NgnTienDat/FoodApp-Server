@@ -284,6 +284,12 @@ class FoodViewSet(viewsets.ModelViewSet):
         return Response(data=FoodSerializers(f, context={'request': request}).data,
                         status=status.HTTP_200_OK)
 
+    @action(methods=['get'], detail=True)
+    def get_review(self, request, pk):
+        reviews = self.get_object().reviews.all()
+        return Response(ReviewSerializer(reviews, many=True).data)
+
+
 
 class RestaurantCategoryViewSet(viewsets.ModelViewSet):
     queryset = RestaurantCategory.objects.filter(active=True)
