@@ -30,5 +30,6 @@ urlpatterns = [
     path('update-sub-cart-item/', views.UpdateItemToSubCart.as_view(), name='update-sub-cart-item'),
     path('follow-restaurant/<int:restaurant_id>/', views.FollowRestaurantAPIView.as_view(), name='follow-restaurant'),
     path('followed-restaurant/', views.FollowedRestaurantsAPIView.as_view(), name='followed-restaurants'),
+    path('momo-payment/', views.MomoPayment.as_view(), name='momo-payment')
 
 ]
