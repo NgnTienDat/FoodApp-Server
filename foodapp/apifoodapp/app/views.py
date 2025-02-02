@@ -603,7 +603,6 @@ class RestaurantFoodsView(APIView):
             return Response({"error": "Restaurant not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-
 class MomoPayment(APIView):
     def post(self, request):
         try:
@@ -652,8 +651,12 @@ class MomoPayment(APIView):
 
             # Gửi yêu cầu tới API Momo
             response = requests.post(endpoint, json=data, headers={'Content-Type': 'application/json'})
-
-            # Trả về kết quả
+            # if response.status_code == 200:
+            #     momo_response = response.json()
+            #     pay_url = momo_response.get('payUrl')  # URL để thanh toán qua Web
+            #     return Response({'payUrl': pay_url}, status=200)
+            # else:
+            #     return Response(response.json(), status=response.status_code)
             return Response(response.json(), status=response.status_code)
 
         except Exception as e:
@@ -674,7 +677,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if delivery_status:
             filters = Q(delivery_status=delivery_status)
 
-        orders = orders.filter(filters)
+        orders = orders.filter(filters).order_by("-id")
 
         serializer = self.get_serializer(orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -730,138 +733,124 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 # class OrderViewSet(viewsets.ModelViewSet):
 #     queryset = Order.objects.all()
 #     serializer_class = OrderSerializer
 #     permission_classes = [permissions.IsAuthenticated]
 #
-#     def list(self, request, *args, **kwargs):
+#     def create(self, request, *args, **kwargs):
 #         user = request.user
-#         delivery_status = request.query_params.get('status')
-#         orders = Order.objects.filter(user=user)
-#         filters = Q()
+#         sub_cart_id = int(request.data.get('sub_cart_id'))
+#         address_id = int(request.data.get('address_id'))
+#         shipping_fee = float(request.data.get('shipping_fee'))
+#         total = float(request.data.get('total_price'))  # Tổng tiền đã bao gồm phí ship
+#         payment_method = request.data.get('payment')
+#         is_successful = False
+#         momo_response = None
 #
-#         if delivery_status:
-#             filters = Q(delivery_status=delivery_status)
+#         shipping_address = get_object_or_404(MyAddress, id=address_id)
+#         sub_cart = get_object_or_404(SubCart, id=sub_cart_id)
 #
-#         orders = orders.filter(filters)
+#         cart = sub_cart.cart
 #
-#         serializer = self.get_serializer(orders, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
+#         # Xử lý thanh toán với MoMo
+#         if payment_method == 'momo':
+#             endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
+#             partnerCode = "MOMO"
+#             accessKey = "F8BBA842ECF85"
+#             secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+#             redirectUrl = "https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b"
+#             ipnUrl = "https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b"
 #
+#             # Tạo các tham số cho MoMo
+#             orderId = str(uuid.uuid4())
+#             requestId = str(uuid.uuid4())
+#             orderInfo = "Thanh toán đơn hàng"
+#             requestType = "captureWallet"
+#             extraData = ""
 #
-# def create(self, request, *args, **kwargs):
-#     user = request.user
-#     sub_cart_id = int(request.data.get('sub_cart_id'))
-#     address_id = int(request.data.get('address_id'))
-#     shipping_fee = float(request.data.get('shipping_fee'))
-#     total = float(request.data.get('total_price'))  # Tổng tiền đã bao gồm phí ship
-#     payment_method = request.data.get('payment')
-#     is_successful = False
-#     momo_response = None
+#             raw_signature = f"accessKey={accessKey}&amount={total}&extraData={extraData}&ipnUrl={ipnUrl}" \
+#                             f"&orderId={orderId}&orderInfo={orderInfo}&partnerCode={partnerCode}" \
+#                             f"&redirectUrl={redirectUrl}&requestId={requestId}&requestType={requestType}"
 #
-#     shipping_address = get_object_or_404(MyAddress, id=address_id)
-#     sub_cart = get_object_or_404(SubCart, id=sub_cart_id)
+#             # Tạo chữ ký
+#             h = hmac.new(bytes(secretKey, 'utf-8'), bytes(raw_signature, 'utf-8'), hashlib.sha256)
+#             signature = h.hexdigest()
 #
-#     cart = sub_cart.cart
+#             # Gửi yêu cầu đến MoMo
+#             momo_data = {
+#                 'partnerCode': partnerCode,
+#                 'partnerName': "Test",
+#                 'storeId': "MomoTestStore",
+#                 'requestId': requestId,
+#                 'amount': str(total),
+#                 'orderId': orderId,
+#                 'orderInfo': orderInfo,
+#                 'redirectUrl': redirectUrl,
+#                 'ipnUrl': ipnUrl,
+#                 'lang': "vi",
+#                 'extraData': extraData,
+#                 'requestType': requestType,
+#                 'signature': signature
+#             }
 #
-#     # Xử lý thanh toán với MoMo
-#     if payment_method == 'momo':
-#         endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
-#         partnerCode = "MOMO"
-#         accessKey = "F8BBA842ECF85"
-#         secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
-#         redirectUrl = "https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b"
-#         ipnUrl = "https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b"
+#             try:
+#                 momo_response = requests.post(endpoint, json=momo_data, headers={'Content-Type': 'application/json'})
+#                 momo_response = momo_response.json()
 #
-#         # Tạo các tham số cho MoMo
-#         orderId = str(uuid.uuid4())
-#         requestId = str(uuid.uuid4())
-#         orderInfo = "Thanh toán đơn hàng"
-#         requestType = "captureWallet"
-#         extraData = ""
+#                 # Kiểm tra trạng thái từ MoMo
+#                 if momo_response.get("resultCode") != 0:
+#                     return Response({"error": "Thanh toán MoMo thất bại."}, status=status.HTTP_400_BAD_REQUEST)
 #
-#         raw_signature = f"accessKey={accessKey}&amount={total}&extraData={extraData}&ipnUrl={ipnUrl}" \
-#                         f"&orderId={orderId}&orderInfo={orderInfo}&partnerCode={partnerCode}" \
-#                         f"&redirectUrl={redirectUrl}&requestId={requestId}&requestType={requestType}"
+#                 # Nếu thành công, cập nhật trạng thái thanh toán
+#                 is_successful = True
 #
-#         # Tạo chữ ký
-#         h = hmac.new(bytes(secretKey, 'utf-8'), bytes(raw_signature, 'utf-8'), hashlib.sha256)
-#         signature = h.hexdigest()
+#             except Exception as e:
+#                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 #
-#         # Gửi yêu cầu đến MoMo
-#         momo_data = {
-#             'partnerCode': partnerCode,
-#             'partnerName': "Test",
-#             'storeId': "MomoTestStore",
-#             'requestId': requestId,
-#             'amount': str(total),
-#             'orderId': orderId,
-#             'orderInfo': orderInfo,
-#             'redirectUrl': redirectUrl,
-#             'ipnUrl': ipnUrl,
-#             'lang': "vi",
-#             'extraData': extraData,
-#             'requestType': requestType,
-#             'signature': signature
-#         }
+#         elif payment_method == 'cash':
+#             payment_method = PaymentMethod.COD
+#         else:
+#             return Response({"error": "Phương thức thanh toán không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
 #
+#         # Tạo đơn hàng
 #         try:
-#             momo_response = requests.post(endpoint, json=momo_data, headers={'Content-Type': 'application/json'})
-#             momo_response = momo_response.json()
+#             with transaction.atomic():
+#                 order = Order.objects.create(user=user, restaurant=sub_cart.restaurant,
+#                                              shipping_address=shipping_address,
+#                                              shipping_fee=shipping_fee,
+#                                              total=total,
+#                                              delivery_status=OrderStatus.PENDING)
 #
-#             # Kiểm tra trạng thái từ MoMo
-#             if momo_response.get("resultCode") != 0:
-#                 return Response({"error": "Thanh toán MoMo thất bại."}, status=status.HTTP_400_BAD_REQUEST)
+#                 Payment.objects.create(user=user, order=order,
+#                                        created_date=datetime.now,
+#                                        amount=total, payment_method=payment_method,
+#                                        is_successful=is_successful)
 #
-#             # Nếu thành công, cập nhật trạng thái thanh toán
-#             is_successful = True
+#                 for s in sub_cart.sub_cart_items.all():
+#                     OrderDetail.objects.create(food=s.food, order=order,
+#                                                quantity=s.quantity,
+#                                                sub_total=s.price)
+#
+#                 sub_cart.delete()
+#                 cart.items_number -= 1
+#
+#                 cart.save()
+#                 if cart.items_number == 0:
+#                     cart.delete()
+#
+#                 # Nếu thanh toán MoMo, trả về URL redirect cho người dùng
+#                 if momo_response:
+#                     return Response({
+#                         "message": "Đặt hàng thành công.",
+#                         "payUrl": momo_response.get("payUrl")  # URL người dùng sẽ chuyển hướng để thanh toán
+#                     }, status=status.HTTP_200_OK)
+#
+#                 return Response({"message": "Đặt hàng thành công."}, status=status.HTTP_200_OK)
 #
 #         except Exception as e:
 #             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#
-#     elif payment_method == 'cash':
-#         payment_method = PaymentMethod.COD
-#     else:
-#         return Response({"error": "Phương thức thanh toán không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
-#
-#     # Tạo đơn hàng
-#     try:
-#         with transaction.atomic():
-#             order = Order.objects.create(user=user, restaurant=sub_cart.restaurant,
-#                                          shipping_address=shipping_address,
-#                                          shipping_fee=shipping_fee,
-#                                          total=total,
-#                                          delivery_status=OrderStatus.PENDING)
-#
-#             Payment.objects.create(user=user, order=order,
-#                                    created_date=datetime.now,
-#                                    amount=total, payment_method=payment_method,
-#                                    is_successful=is_successful)
-#
-#             for s in sub_cart.sub_cart_items.all():
-#                 OrderDetail.objects.create(food=s.food, order=order,
-#                                            quantity=s.quantity,
-#                                            sub_total=s.price)
-#
-#             sub_cart.delete()
-#             cart.items_number -= 1
-#
-#             cart.save()
-#             if cart.items_number == 0:
-#                 cart.delete()
-#
-#             # Nếu thanh toán MoMo, trả về URL redirect cho người dùng
-#             if momo_response:
-#                 return Response({
-#                     "message": "Đặt hàng thành công.",
-#                     "payUrl": momo_response.get("payUrl")  # URL người dùng sẽ chuyển hướng để thanh toán
-#                 }, status=status.HTTP_200_OK)
-#
-#             return Response({"message": "Đặt hàng thành công."}, status=status.HTTP_200_OK)
-#
-#     except Exception as e:
-#         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class FollowRestaurantAPIView(APIView):
@@ -916,14 +905,40 @@ class CommentViewSet(viewsets.ModelViewSet):
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = RestaurantPagination
+
+    def get_permissions(self):
+        if self.action == 'list':
+            permission_classes = [permissions.AllowAny]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
     def list(self, request, *args, **kwargs):
+        queryset = self.queryset
         user = request.user
-        restaurant = get_object_or_404(Restaurant, owner=user)
-        reviews = Review.objects.filter(restaurant=restaurant).all()
-        serializer = ReviewSerializer(reviews, many=True)
+        restaurant_id = request.query_params.get('restaurantId', 0)
+        food_id = request.query_params.get('foodId', 0)
+        filters = Q()
 
+
+        if restaurant_id:
+            restaurant = get_object_or_404(Restaurant, id=int(restaurant_id))
+            filters &= Q(restaurant=restaurant)
+
+        if food_id:
+            food = get_object_or_404(Food, id=int(food_id))
+            filters &= Q(food=food)
+
+        reviews = queryset.filter(filters).order_by("-id")
+
+        paginated_reviews = self.paginate_queryset(reviews)
+        if paginated_reviews is not None:
+            serializer = self.get_serializer(paginated_reviews, many=True)
+            return self.get_paginated_response(serializer.data)
+
+
+        serializer = self.get_serializer(reviews, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
@@ -943,7 +958,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(review)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
     def partial_update(self, request, *args, **kwargs):
         user = request.user

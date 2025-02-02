@@ -15,6 +15,14 @@ class BaseSerializer(ModelSerializer):
             return request.build_absolute_uri('/static/%s' % obj.image)
 
 
+class UserSimpleSerializer(ModelSerializer):
+    avatar = serializers.ImageField(required=False)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'avatar']
+
+
 class UserSerializer(ModelSerializer):
     def create(self, validated_data):
         data = validated_data.copy()
@@ -82,7 +90,7 @@ class RestaurantSP(ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'image']
+        fields = ['id', 'name', 'image', 'address', 'shipping_fee']
 
 
 class RestaurantName(ModelSerializer):
@@ -170,7 +178,7 @@ class OrderDetailSerializer(BaseSerializer):
 
     class Meta:
         model = OrderDetail
-        fields = ['id', 'food', 'order', 'quantity', 'sub_total', 'order']
+        fields = ['id', 'food', 'order', 'quantity', 'sub_total', 'order', 'evaluated']
 
 
 class OrderSerializer(BaseSerializer):
@@ -253,14 +261,11 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ['id', 'content', 'created_date', 'user']
 
 
+
+
 class ReviewSerializer(serializers.ModelSerializer):
-    restaurant_comment = CommentSerializer(read_only=True)  # Chỉ đọc thông tin phản hồi của nhà hàng
-    # restaurant_comment_id = serializers.PrimaryKeyRelatedField(
-    #     queryset=Comment.objects.all(),
-    #     source='restaurant_comment',
-    #     write_only=True,
-    #     required=False
-    # )  # Để ghi nhận bình luận nhà hàng qua ID
+    restaurant_comment = CommentSerializer(read_only=True)
+    user = UserSimpleSerializer()
 
     class Meta:
         model = Review
