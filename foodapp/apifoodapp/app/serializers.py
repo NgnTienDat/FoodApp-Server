@@ -6,6 +6,7 @@ from rest_framework.serializers import ModelSerializer
 from .models import Restaurant, User, MainCategory, RestaurantCategory, Food, Cart, SubCart, SubCartItem, ServicePeriod, \
     Menu, Order, OrderDetail, RestaurantAddress, MyAddress, Comment, Review
 
+
 class BaseSerializer(ModelSerializer):
     image = SerializerMethodField(source='image')
 
@@ -264,16 +265,15 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class ReviewSerializer(serializers.ModelSerializer):
+
     restaurant_comment = CommentSerializer(read_only=True)
     user = UserSimpleSerializer()
+    username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = Review
-        fields = ['id', 'stars', 'user', 'food', 'restaurant', 'customer_comment',
+        fields = ['id', 'stars', 'user', 'username', 'food', 'restaurant', 'customer_comment',
                   'restaurant_comment', 'created_date']
-
-
-
 
 #
 # class OrderDetailSerializer(ModelSerializer):
