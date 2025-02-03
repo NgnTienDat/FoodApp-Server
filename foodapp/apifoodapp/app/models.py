@@ -92,7 +92,7 @@ class Restaurant(models.Model):
     owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurants")
     star_rate = models.FloatField(null=True)
     active = models.BooleanField(default=True)
-    confirmation_status = models.BooleanField(default=False, null=False)
+    confirmation_status = models.BooleanField(default=False, null=True)
     image = CloudinaryField('image', null=True)
     followers = models.ManyToManyField(User, related_name='following_restaurants')
     shipping_fee = models.FloatField(max_length=100, null=True)
