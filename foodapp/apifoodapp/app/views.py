@@ -694,6 +694,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         address_id = int(request.data.get('address_id'))
         # shipping_address = request.data.get('address')
         shipping_fee = float(request.data.get('shipping_fee'))
+
         total = float(request.data.get('total_price'))  # da bao gom phi ship
         payment_method = request.data.get('payment')
         is_successful = False
