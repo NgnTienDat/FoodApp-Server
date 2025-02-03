@@ -1,0 +1,71 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Thống kê doanh thu theo cửa hàng</h1>
+
+<!-- lọc theo tháng, quý, năm -->
+<form method="get" action="">
+    <label for="report-type">Chọn loại báo cáo:</label>
+    <select name="report_type" id="report-type" onchange="this.form.submit()">
+        <option value="month" {% if report_type == 'month' %}selected{% endif %}>Theo Tháng</option>
+        <option value="quarter" {% if report_type == 'quarter' %}selected{% endif %}>Theo Quý</option>
+        <option value="year" {% if report_type == 'year' %}selected{% endif %}>Theo Năm</option>
+    </select>
+
+    <label for="month">Chọn Tháng:</label>
+    <input type="month" name="month" id="month" value="{{ selected_month|default:'' }}" {% if report_type != 'month' %}disabled{% endif %}>
+
+    <label for="quarter">Chọn Quý:</label>
+    <select name="quarter" id="quarter" {% if report_type != 'quarter' %}disabled{% endif %}>
+        {% for quarter in quarters %}
+        <option value="{{ quarter }}" {% if selected_quarter == quarter %}selected{% endif %}>
+            Quý {{ quarter }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <label for="year">Chọn Năm:</label>
+    <input type="number" name="year" id="year" min="2000" max="{{ current_year }}" value="{{ selected_year|default:current_year }}" required>
+
+    <button type="submit">Xem Báo Cáo</button>
+</form>
+
+<!-- dữ liệu báo cáo -->
+<table border="1">
+    <thead>
+        <tr>
+            <th>Tên Nhà Hàng</th>
+            <th>Tổng Doanh Thu</th>
+            <th>Tổng Đơn Hàng</th>
+            <th>Số Lượng Món Ăn Kinh Doanh</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for restaurant in restaurant_stats %}
+        <tr>
+            <td>{{ restaurant.name }}</td>
+            <td>
+                {% if report_type == 'month' %}
+                    {{ restaurant.sales_month|default:"0" }}
+                {% elif report_type == 'quarter' %}
+                    {{ restaurant.sales_quarter|default:"0" }}
+                {% elif report_type == 'year' %}
+                    {{ restaurant.sales_year|default:"0" }}
+                {% endif %}
+            </td>
+            <td>
+                {% if report_type == 'month' %}
+                    {{ restaurant.total_orders_month|default:"0" }}
+                {% elif report_type == 'quarter' %}
+                    {{ restaurant.total_orders_quarter|default:"0" }}
+                {% elif report_type == 'year' %}
+                    {{ restaurant.total_orders_year|default:"0" }}
+                {% endif %}
+            </td>
+            <td>{{ restaurant.food_count }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
