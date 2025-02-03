@@ -98,6 +98,7 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = 'apifoodapp.wsgi.application'
 
 # Database
@@ -156,7 +157,6 @@ AUTH_USER_MODEL = 'app.User'
 
 CLIENT_ID = 'QvhI26LJ0bwHurLgrMoEYRy5OPeMrMLbmGLtZxGE'
 CLIENT_SECRET = 'Muy7Hq81uX5ElvZTT3zMr84CkzreJ4qXZsiTc7OYYwMCrNAL6UxZTeztJRri2mGxihlT2yDaqX9ZDpCbmx2FBkKBTWEwJ0dZzOeGaxSKG001yxXpodHBpXwk6DvVVmCY'
-
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'

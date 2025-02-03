@@ -1,31 +1,67 @@
+from datetime import datetime, timedelta
+from django.db.models import Q
+
 from django.contrib import admin
-from django.utils.html import mark_safe
-from .models import RestaurantCategory, Cart, Food, Restaurant, User, MainCategory, SubCart, SubCartItem, Menu, Order, \
-    OrderDetail
+from django.db.models import Sum, Count
+from django.shortcuts import render
+from django.urls import path
+from .models import Restaurant, User
 
 
 # Register your models here
-class FoodAdmin(admin.ModelAdmin):
-    list_display = ["id", "name", "price", "category", "restaurant"]
-    search_fields = ["name", "price", "category__name"]
-    # readonly_fields = ['image_food']
-
-    # def image_food(self, food):
-    #     return mark_safe(f"<img src='/static/{food.image.name}' width='200' />")
-
-
-class RestaurantCategoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "name", "restaurant"]
-    search_fields = ["name"]
-
-
-class MainCategoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "name"]
-    search_fields = ["name"]
 
 
 class FoodAppAdminSite(admin.AdminSite):
-    site_header = 'FOOD APP'
+    site_header = 'Hệ Thống Quản Lý FoodApp'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('reports/', self.admin_view(self.reports_view), name="admin_reports"),
+        ]
+        return custom_urls + urls
+
+    def reports_view(self, request):
+        today = datetime.today()
+        report_type = request.GET.get('report_type', 'month')
+        selected_month = request.GET.get('month', today.strftime('%Y-%m'))
+        selected_quarter = request.GET.get('quarter')
+        selected_year = request.GET.get('year', today.year)
+
+        if report_type == 'month':
+            start_date = datetime.strptime(selected_month + '-01', '%Y-%m-%d')
+            end_date = (start_date.replace(month=start_date.month % 12 + 1, day=1) - timedelta(days=1))
+        elif report_type == 'quarter' and selected_quarter:
+            start_month = (int(selected_quarter) - 1) * 3 + 1
+            start_date = datetime(int(selected_year), start_month, 1)
+            end_month = start_month + 2
+            end_date = datetime(int(selected_year), end_month, 1).replace(day=1) + timedelta(days=32)
+            end_date = end_date.replace(day=1) - timedelta(days=1)  # Cuối quý
+        elif report_type == 'year':
+            start_date = datetime(int(selected_year), 1, 1)
+            end_date = datetime(int(selected_year), 12, 31)
+        else:
+            start_date = today.replace(day=1)
+            end_date = today
+
+        restaurant_stats = Restaurant.objects.annotate(
+            sales=Sum('restaurant_orders__total', filter=Q(restaurant_orders__order_date__gte=start_date) & Q(
+                restaurant_orders__order_date__lte=end_date)),
+            total_orders=Count('restaurant_orders', filter=Q(restaurant_orders__order_date__gte=start_date) & Q(
+                restaurant_orders__order_date__lte=end_date)),
+            food_count=Count('foods', distinct=True)
+        )
+
+        context = {
+            'restaurant_stats': restaurant_stats,
+            'report_type': report_type,
+            'selected_month': selected_month,
+            'selected_quarter': selected_quarter,
+            'selected_year': selected_year,
+            'current_year': today.year,
+            'quarters': [1, 2, 3, 4],
+        }
+        return render(request, "admin/reports.html", context)
 
 
 class UserAdmin(admin.ModelAdmin):
@@ -46,31 +82,6 @@ class RestaurantAdmin(admin.ModelAdmin):
     approve_restaurants.short_description = "Phê duyệt nhà hàng đã chọn"
 
 
-class CartAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'items_number']
-
-
-class SubCartAdmin(admin.ModelAdmin):
-    list_display = ['id', 'restaurant', 'cart', 'total_price']
-
-
-class SubCartItemAdmin(admin.ModelAdmin):
-    list_display = ['id', 'restaurant', 'food', 'sub_cart', 'quantity', 'price', 'note']
-
-
-class MenuAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'restaurant', "serve_period"]
-
-
 admin_site = FoodAppAdminSite('myfoodapp')
-# admin_site.register(Food, FoodAdmin)
-# admin_site.register(RestaurantCategory, RestaurantCategoryAdmin)
-# admin_site.register(MainCategory, MainCategoryAdmin)
 admin_site.register(User, UserAdmin)
 admin_site.register(Restaurant, RestaurantAdmin)
-# admin_site.register(Cart, CartAdmin)
-# admin_site.register(SubCart, SubCartAdmin)
-# admin_site.register(SubCartItem, SubCartItemAdmin)
-# admin_site.register(Menu, MenuAdmin)
-# admin_site.register(Order, admin.ModelAdmin)
-# admin_site.register(OrderDetail, admin.ModelAdmin)
