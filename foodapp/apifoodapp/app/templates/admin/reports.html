@@ -46,20 +46,20 @@
             <td>{{ restaurant.name }}</td>
             <td>
                 {% if report_type == 'month' %}
-                    {{ restaurant.sales_month|default:"0" }}
+                    {{ restaurant.sales|default:"0" }}
                 {% elif report_type == 'quarter' %}
-                    {{ restaurant.sales_quarter|default:"0" }}
+                    {{ restaurant.sales|default:"0" }}
                 {% elif report_type == 'year' %}
-                    {{ restaurant.sales_year|default:"0" }}
+                    {{ restaurant.sales|default:"0" }}
                 {% endif %}
             </td>
             <td>
                 {% if report_type == 'month' %}
-                    {{ restaurant.total_orders_month|default:"0" }}
+                    {{ restaurant.total_orders|default:"0" }}
                 {% elif report_type == 'quarter' %}
-                    {{ restaurant.total_orders_quarter|default:"0" }}
+                    {{ restaurant.total_orders|default:"0" }}
                 {% elif report_type == 'year' %}
-                    {{ restaurant.total_orders_year|default:"0" }}
+                    {{ restaurant.total_orders|default:"0" }}
                 {% endif %}
             </td>
             <td>{{ restaurant.food_count }}</td>

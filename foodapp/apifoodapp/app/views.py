@@ -173,15 +173,24 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         return RestaurantSerializer  # Do trong viewset của restaurant nên mặc định là c này
 
     # gửi mail cho flower khi thêm món ăn
-    def send_email(self, restaurant, food):
+    def send_email(self, restaurant, obj):
         followers = restaurant.followers.all()
         emails = [f.email for f in followers if f.email]
+        newAbc = ''
+
+        if isinstance(obj, Food):
+            newAbc = 'món ăn'
+        if isinstance(obj, Menu):
+            newAbc = 'menu'
+        if isinstance(obj, RestaurantCategory):
+            newAbc = 'danh mục'
+
         if emails:
             send_mail(
-                subject=f"Nhà hàng {restaurant.name} có món ăn mới",
+                subject=f"Nhà hàng {restaurant.name} có {newAbc} mới",
                 message=f"""\
                 Xin chào,
-                Nhà hàng {restaurant.name} vừa thêm món {food.name} vào thực đơn!
+                Nhà hàng {restaurant.name} vừa thêm {newAbc} {obj.name} mới!
                 Nhanh tay đặt hàng để thưởng thức món ngon mới nhất!
                 Cảm ơn quý khách!
                 """,
@@ -218,6 +227,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             food = serializer.save(restaurant=restaurant)
+            self.send_email(restaurant, food)
             return Response(RestaurantCategorySerializer(food, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
 
@@ -233,6 +243,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         )
         if serializer.is_valid():
             menu = serializer.save(restaurant=restaurant)
+            self.send_email(restaurant, menu)
             return Response(MenuSerializer(menu, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
 
@@ -602,7 +613,7 @@ class RestaurantFoodsView(APIView):
     def get(self, request, restaurant_id):
         try:
             restaurant = Restaurant.objects.get(id=restaurant_id)
-            foods = restaurant.foods.filter(is_available=True).all()
+            foods = restaurant.foods.all()
             serializer = FoodSerializers(foods, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Restaurant.DoesNotExist:
@@ -694,6 +705,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         address_id = int(request.data.get('address_id'))
         # shipping_address = request.data.get('address')
         shipping_fee = float(request.data.get('shipping_fee'))
+
         total = float(request.data.get('total_price'))  # da bao gom phi ship
         payment_method = request.data.get('payment')
         is_successful = False

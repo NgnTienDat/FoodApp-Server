@@ -92,9 +92,9 @@ class Restaurant(models.Model):
     owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="restaurants")
     star_rate = models.FloatField(null=True)
     active = models.BooleanField(default=True)
-    confirmation_status = models.BooleanField(default=False, null=False)
+    confirmation_status = models.BooleanField(default=False, null=True)
     image = CloudinaryField('image', null=True)
-    followers = models.ManyToManyField(User, related_name='following_restaurants')
+    followers = models.ManyToManyField(User, related_name='following_restaurants', blank=True)
     shipping_fee = models.FloatField(max_length=100, null=True)
 
     def __str__(self):
@@ -188,6 +188,10 @@ class Order(models.Model):
     total = models.FloatField(default=0)
     delivery_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
     order_date = models.DateTimeField(auto_now_add=True, null=True)
+
+
+    def __str__(self):
+        return f'{self.id}'
 
 
 class Payment(models.Model):
