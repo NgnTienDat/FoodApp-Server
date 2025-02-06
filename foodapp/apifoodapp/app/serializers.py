@@ -42,10 +42,11 @@ class UserSerializer(ModelSerializer):
 
     avatar = serializers.ImageField(required=False)
     restaurant_id = serializers.SerializerMethodField()
+    confirm_status = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone_number', 'username', 'password', 'avatar', 'role', 'restaurant_id']
+        fields = ['id', 'email', 'phone_number', 'username', 'password', 'avatar', 'role', 'restaurant_id', 'confirm_status']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -56,6 +57,14 @@ class UserSerializer(ModelSerializer):
         try:
             if obj.restaurants:
                 return obj.restaurants.id
+        except ObjectDoesNotExist:
+            return None
+
+
+    def get_confirm_status(self, obj):
+        try:
+            if obj.restaurants:
+                return obj.restaurants.confirmation_status
         except ObjectDoesNotExist:
             return None
 
@@ -248,6 +257,17 @@ class FoodDB(ModelSerializer):
 class MenuSerializer(ModelSerializer):
     serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
     restaurant = RestaurantSP(read_only=True)
+
+    # food = FoodDB(many=True)
+
+    class Meta:
+        model = Menu
+        fields = ['id', 'name', 'restaurant', 'description', 'food', 'serve_period', 'active']
+
+
+class ClientMenuSerializer(ModelSerializer):
+    serve_period = serializers.ChoiceField(choices=ServicePeriod.choices)
+    food = FoodSerializers(many=True)
 
     # food = FoodDB(many=True)
 

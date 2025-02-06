@@ -22,7 +22,7 @@ from .models import Restaurant, MainCategory, User, Food, Cart, SubCart, SubCart
 from .serializers import RestaurantSerializer, MainCategorySerializer, UserSerializer, FoodSerializers, \
     RestaurantCategorySerializer, CartSerializer, SubCartItemSerializer, SubCartSerializer, FoodCreateSerializer, \
     CategoryCreateSerializer, MenuSerializer, OrderSerializer, OrderDetailSerializer, RestaurantAddressSerializer, \
-    MyAddressSerializer, RestaurantFollowers, CommentSerializer, ReviewSerializer
+    MyAddressSerializer, RestaurantFollowers, CommentSerializer, ReviewSerializer, ClientMenuSerializer
 
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -137,6 +137,14 @@ class RestaurantViewSet(viewsets.ModelViewSet):
         if q:
             menus = menus.filter(name__icontains=q)
         return Response(MenuSerializer(menus, many=True).data)
+
+    @action(methods=['get'], url_path='client-menus', detail=True)
+    def get_client_menus(self, request, pk):
+        menus = self.get_object().menus.filter(active=True)
+        q = request.query_params.get("q")
+        if q:
+            menus = menus.filter(name__icontains=q)
+        return Response(ClientMenuSerializer(menus, many=True).data)
 
     @action(methods=['get'], url_path='orders', detail=True)
     def get_order(self, request, pk):
@@ -303,7 +311,6 @@ class FoodViewSet(viewsets.ModelViewSet):
         return Response(ReviewSerializer(reviews, many=True).data)
 
 
-
 class RestaurantCategoryViewSet(viewsets.ModelViewSet):
     queryset = RestaurantCategory.objects.filter(active=True)
     serializer_class = RestaurantCategorySerializer
@@ -401,16 +408,18 @@ class SubCartViewSet(viewsets.ModelViewSet):
 class MyAddressViewSet(viewsets.ModelViewSet):
     serializer_class = MyAddressSerializer
     queryset = MyAddress.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
 
     @action(methods=['get'], url_path='my-addresses', detail=False)
     def get_my_address(self, request):
-        try:
-            addresses = MyAddress.objects.filter(user=request.user)
-        except MyAddress.DoesNotExist:
-            return Response(
-                {"error": "Địa chỉ không tồn tại."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        addresses = MyAddress.objects.filter(user=request.user)
+
+        if not addresses.exists():
+            return Response({"message": "Địa chỉ không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = MyAddressSerializer(addresses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
     def create(self, request, *args, **kwargs):
         user = request.user
@@ -939,7 +948,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         food_id = request.query_params.get('foodId', 0)
         filters = Q()
 
-
         if restaurant_id:
             restaurant = get_object_or_404(Restaurant, id=int(restaurant_id))
             filters &= Q(restaurant=restaurant)
@@ -954,7 +962,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if paginated_reviews is not None:
             serializer = self.get_serializer(paginated_reviews, many=True)
             return self.get_paginated_response(serializer.data)
-
 
         serializer = self.get_serializer(reviews, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
