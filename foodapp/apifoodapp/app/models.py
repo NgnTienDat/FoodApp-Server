@@ -105,7 +105,7 @@ class Food(models.Model):
     name = models.CharField(max_length=100, null=False)
     price = models.FloatField(null=False)
     description = models.TextField(null=True, blank=True)
-    category = models.ForeignKey(RestaurantCategory, on_delete=models.SET_NULL, null=True)
+    category = models.ForeignKey(RestaurantCategory, on_delete=models.SET_NULL, null=True, blank=True)
     image = CloudinaryField('image', null=True)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='foods')
     is_available = models.BooleanField(default=True)
